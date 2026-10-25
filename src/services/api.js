@@ -33,38 +33,36 @@ api.interceptors.response.use(
   }
 );
 
-export const authService = {
-  login: async (email, password, role = 'HOTEL_ADMIN') => {
-    const response = await api.post('/api/v1/auth/login', {
-      email,
-      password,
-      role: role || undefined,
+export const restaurantService = {
+  getPublicRestaurants: async () => {
+    const response = await api.get('/api/v1/public/restaurants');
+    return response.data;
+  },
+
+  connectTerminal: async (restaurantId) => {
+    const response = await api.post('/api/v1/auth/kds-terminal-login', {
+      restaurant_id: Number(restaurantId),
     });
     const data = response.data;
     if (data.access_token) {
       localStorage.setItem('kds_access_token', data.access_token);
       localStorage.setItem('kds_user', JSON.stringify(data.user || {}));
+      localStorage.setItem('kds_selected_hotel_id', restaurantId.toString());
     }
     return data;
   },
+};
 
+export const authService = {
   getCurrentUser: async () => {
     const response = await api.get('/api/v1/auth/me');
     return response.data;
   },
 
-  refreshToken: async () => {
-    const response = await api.post('/api/v1/auth/refresh');
-    if (response.data?.access_token) {
-      localStorage.setItem('kds_access_token', response.data.access_token);
-    }
-    return response.data;
-  },
-
-  logout: () => {
+  disconnectTerminal: () => {
     localStorage.removeItem('kds_access_token');
     localStorage.removeItem('kds_user');
-    window.location.reload();
+    localStorage.removeItem('kds_selected_hotel_id');
   },
 
   getStoredUser: () => {

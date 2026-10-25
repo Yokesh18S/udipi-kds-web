@@ -5,7 +5,7 @@ import { useWakeLock } from './hooks/useWakeLock';
 import { useFullscreen } from './hooks/useFullscreen';
 import KDSHeader from './components/KDSHeader';
 import KDSOrdersView from './components/KDSOrdersView';
-import KitchenLogin from './components/KitchenLogin';
+import HotelSelector from './components/HotelSelector';
 import KioskBanner from './components/KioskBanner';
 
 export default function App() {
@@ -25,9 +25,9 @@ export default function App() {
   const { isSupported: isWakeSupported, isActive: isWakeLockActive, requestWakeLock } = useWakeLock();
   const { isFullscreen, enterFullscreen, toggleFullscreen } = useFullscreen();
 
-  // Check saved credentials & restore session on initial launch
+  // Restore previously selected hotel session on launch
   useEffect(() => {
-    const initAuth = async () => {
+    const initHotelSession = async () => {
       const storedToken = localStorage.getItem('kds_access_token');
       if (!storedToken) {
         setIsAuthChecking(false);
@@ -38,35 +38,24 @@ export default function App() {
         const user = await authService.getCurrentUser();
         setCurrentUser(user);
       } catch (err) {
-        console.warn('Session verification failed, attempting token refresh...', err);
-        try {
-          const refreshRes = await authService.refreshToken();
-          if (refreshRes?.user) {
-            setCurrentUser(refreshRes.user);
-          } else {
-            const user = await authService.getCurrentUser();
-            setCurrentUser(user);
-          }
-        } catch (refreshErr) {
-          console.warn('Could not restore terminal session:', refreshErr);
-          // If remember terminal was not set, clear
-          if (!localStorage.getItem('kds_remember_terminal')) {
-            authService.logout();
-          } else {
-            // Keep user from local cache if offline
-            const cachedUser = authService.getStoredUser();
-            if (cachedUser) setCurrentUser(cachedUser);
-          }
+        console.warn('Session verification failed, falling back to cached station...', err);
+        const cachedUser = authService.getStoredUser();
+        if (cachedUser && cachedUser.restaurant_id) {
+          setCurrentUser(cachedUser);
+        } else {
+          authService.disconnectTerminal();
+          setCurrentUser(null);
         }
       } finally {
         setIsAuthChecking(false);
       }
     };
 
-    initAuth();
+    initHotelSession();
 
     // Listen for auth expiration events
     const handleExpired = () => {
+      authService.disconnectTerminal();
       setCurrentUser(null);
     };
     window.addEventListener('kds-auth-expired', handleExpired);
@@ -108,17 +97,32 @@ export default function App() {
     document.documentElement.style.setProperty('--kds-scale', zoomScale.toString());
   }, [zoomScale]);
 
+  const handleSwitchHotel = () => {
+    authService.disconnectTerminal();
+    setCurrentUser(null);
+  };
+
   if (isAuthChecking) {
     return (
       <div className="kds-loading-screen">
         <div className="spinner-border animate-spin" />
-        <p>Connecting to Kitchen Terminal...</p>
+        <p>Connecting to Kitchen Station...</p>
       </div>
     );
   }
 
+  // If no hotel is selected, display the Connected Hotels Grid
   if (!currentUser) {
-    return <KitchenLogin onLoginSuccess={(user) => setCurrentUser(user)} />;
+    return (
+      <HotelSelector
+        onSelectHotel={(user) => {
+          setCurrentUser(user);
+          // Auto unlock audio and acquire wake lock when hotel is selected
+          unlockKOTAudio().catch(() => {});
+          requestWakeLock();
+        }}
+      />
+    );
   }
 
   return (
@@ -147,7 +151,7 @@ export default function App() {
         onToggleFullscreen={toggleFullscreen}
         zoomScale={zoomScale}
         onCycleZoom={handleCycleZoom}
-        onLogout={() => authService.logout()}
+        onSwitchHotel={handleSwitchHotel}
       />
 
       {/* Main 2-Column Ticket Board */}

@@ -7,7 +7,7 @@ import {
   Maximize2,
   Minimize2,
   Tv,
-  LogOut,
+  Building2,
   Bell,
   Search,
   CheckCircle,
@@ -31,7 +31,7 @@ export default function KDSHeader({
   onToggleFullscreen,
   zoomScale,
   onCycleZoom,
-  onLogout
+  onSwitchHotel
 }) {
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
@@ -75,20 +75,20 @@ export default function KDSHeader({
     <header className="kds-header">
       {/* Top Main Row */}
       <div className="kds-header-top">
-        {/* Left: Branding & Terminal Info */}
+        {/* Left: Branding & Hotel Info */}
         <div className="header-brand-section">
           <div className="brand-icon-box">
             <ChefHat className="w-7 h-7 text-amber-400" />
           </div>
           <div>
             <div className="header-title-row">
-              <h1 className="header-title">UDIPI KDS</h1>
+              <h1 className="header-title">{currentUser?.restaurant_name || 'UDIPI KDS'}</h1>
               <span className="terminal-badge">
-                <span className="live-dot" /> LIVE TERMINAL
+                <span className="live-dot" /> LIVE KITCHEN
               </span>
             </div>
             <div className="restaurant-subtext">
-              {currentUser?.restaurant_name || 'Kitchen Display'} • Staff: {currentUser?.name || 'Manager'}
+              Kitchen Display Station • Active Order Stream
             </div>
           </div>
         </div>
@@ -173,13 +173,14 @@ export default function KDSHeader({
             )}
           </button>
 
-          {/* Logout */}
+          {/* Switch Hotel Station */}
           <button
-            onClick={onLogout}
-            className="control-btn btn-danger"
-            title="Disconnect Terminal / Logout"
+            onClick={onSwitchHotel}
+            className="control-btn btn-secondary"
+            title="Switch Connected Hotel"
           >
-            <LogOut className="w-4 h-4" />
+            <Building2 className="w-4 h-4 text-amber-400" />
+            <span className="control-btn-text">Switch Hotel</span>
           </button>
         </div>
       </div>
