@@ -355,12 +355,12 @@ export default function KDSOrdersView({
     } finally {
       setLoading(false);
       if (manual) {
-        setTimeout(() => setIsRefreshing(false), 500);
+        setTimeout(() => setIsRefreshing(false), 300);
       }
     }
   }, []);
 
-  // FAST SERIALIZED POLLING: RUNS EVERY 2 SECONDS FOR INSTANT LIVE ORDER REFLECTION
+  // FAST SERIALIZED POLLING (1s) + 0ms BROADCASTCHANNEL INSTANT SYNC
   useEffect(() => {
     let isMounted = true;
 
@@ -374,13 +374,34 @@ export default function KDSOrdersView({
       } finally {
         isPollingRef.current = false;
         if (isMounted) {
-          // Poll every 2 seconds so new orders show up within 2s of placement!
-          pollTimerRef.current = setTimeout(runPoll, 2000);
+          // Poll every 1 second for instant live reflection
+          pollTimerRef.current = setTimeout(runPoll, 1000);
         }
       }
     };
 
     runPoll();
+
+    // 0-SECOND ZERO DELAY: Instant Cross-Window BroadcastChannel sync from Cashier/POS
+    let channel = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        channel = new BroadcastChannel('udipi_kds_sync_channel');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'ORDER_PLACED') {
+            fetchOrders(false);
+          }
+        };
+      } catch (e) {}
+    }
+
+    // 0-SECOND ZERO DELAY: Instant Cross-Tab Storage Event sync from Cashier/POS
+    const handleStorageSync = (e) => {
+      if (e.key === 'kds_instant_sync_ping') {
+        fetchOrders(false);
+      }
+    };
+    window.addEventListener('storage', handleStorageSync);
 
     // Trigger immediate fetch when app/tab regains focus
     const handleFocus = () => {
@@ -394,6 +415,8 @@ export default function KDSOrdersView({
     return () => {
       isMounted = false;
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+      if (channel) channel.close();
+      window.removeEventListener('storage', handleStorageSync);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleFocus);
     };
@@ -631,7 +654,8 @@ export default function KDSOrdersView({
                 <p className="empty-sub">No pending orders right now.</p>
               </div>
             ) : (
-              newOrdersList.map((order) => {
+              // Sliced to top 40 tickets to prevent huge DOM tree freeze
+              newOrdersList.slice(0, 40).map((order) => {
                 const idStr = getNormalizedId(order);
                 return (
                   <KDSTicketCard
@@ -665,7 +689,8 @@ export default function KDSOrdersView({
                 <p className="empty-sub">Completed orders will appear here.</p>
               </div>
             ) : (
-              historyOrdersList.map((order) => {
+              // Sliced to top 25 recent completed tickets
+              historyOrdersList.slice(0, 25).map((order) => {
                 const idStr = getNormalizedId(order);
                 return (
                   <KDSTicketCard

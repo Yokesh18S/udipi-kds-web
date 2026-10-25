@@ -1,6 +1,23 @@
 ﻿import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://dev-api.dataudipi.com';
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+  if (typeof window !== 'undefined') {
+    // When running locally on developer PC or local Wi-Fi, connect to port 8001 directly for instant speed
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:8001';
+    }
+    if (window.location.hostname.startsWith('192.168.')) {
+      return `http://${window.location.hostname}:8001`;
+    }
+  }
+  return 'http://dev-api.dataudipi.com';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -114,15 +131,16 @@ export const authService = {
   },
 
   getStoredUser: () => {
+    const str = localStorage.getItem('kds_user');
+    if (!str) return null;
     try {
-      const u = localStorage.getItem('kds_user');
-      return u ? JSON.parse(u) : null;
+      return JSON.parse(str);
     } catch {
       return null;
     }
   },
 
-  hasValidToken: () => {
+  isAuthenticated: () => {
     return Boolean(localStorage.getItem('kds_access_token'));
   },
 };
@@ -139,14 +157,16 @@ export const orderService = {
   },
 
   updateOrderStatus: async (orderId, status) => {
-    const response = await api.patch(`/api/v1/orders/${orderId}/status`, { status });
+    const response = await api.patch(`/api/v1/orders/${orderId}/status`, {
+      status,
+    });
     return response.data;
   },
 
-  updateOrderPaymentStatus: async (orderId, payment_status) => {
-    const response = await api.patch(`/api/v1/orders/${orderId}/payment-status`, { payment_status });
+  updatePaymentStatus: async (orderId, paymentStatus) => {
+    const response = await api.patch(`/api/v1/orders/${orderId}/payment-status`, {
+      payment_status: paymentStatus,
+    });
     return response.data;
   },
 };
-
-export { API_BASE_URL };
