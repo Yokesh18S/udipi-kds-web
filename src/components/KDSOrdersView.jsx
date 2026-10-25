@@ -161,7 +161,7 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
         )}
       </div>
 
-      {/* 6. INSTANT 0MS ACTION BUTTONS */}
+      {/* 6. INSTANT ACTION BUTTONS WITH CLEAR REVERT */}
       <div className="card-action-bar">
         <button
           onClick={(e) => {
@@ -214,16 +214,18 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
           )
         )}
 
-        {status === 'PREPARING' && (
+        {/* REVERT BUTTON (Staff manual revert — no automatic backtrack) */}
+        {!isHistory && status === 'PREPARING' && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onUpdateStatus(orderId, 'CONFIRMED');
             }}
             className="btn-card-undo"
-            title="Revert to Pending"
+            title="Return ticket to Pending"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4 mr-1 text-amber-400" />
+            <span>Revert</span>
           </button>
         )}
 
@@ -234,9 +236,10 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
               onUpdateStatus(orderId, 'PREPARING');
             }}
             className="btn-card-undo"
-            title="Reopen back to Kitchen"
+            title="Return ticket back to Kitchen Prep"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4 mr-1 text-emerald-400" />
+            <span>Revert to Kitchen</span>
           </button>
         )}
       </div>
@@ -266,8 +269,13 @@ export default function KDSOrdersView({
 
   const knownOrderIdsRef = useRef(null);
   
-  // Optimistic lock with timestamp to completely prevent bounce-back
-  const optimisticLocksRef = useRef(new Map());
+  // ABSOLUTE USER AUTHORITY STATUS OVERRIDES
+  // Once the user clicks "Mark Ready" or "Start Prep", polling NEVER reverts the card!
+  const userStatusOverridesRef = useRef(new Map());
+
+  // Serialized polling state: strictly prevents overlapping background requests
+  const isPollingRef = useRef(false);
+  const pollTimerRef = useRef(null);
 
   const handleToggleSort = () => {
     const nextSort = sortOrder === 'LATEST_FIRST' ? 'OLDEST_FIRST' : 'LATEST_FIRST';
@@ -285,24 +293,18 @@ export default function KDSOrdersView({
       const data = await orderService.getLiveOrders();
       let rawOrders = Array.isArray(data) ? data : [];
 
-      // Apply optimistic overrides so server polling NEVER reverts recent user button clicks
-      const now = Date.now();
+      // Merge with user status overrides (User action has 100% priority — NO AUTO-REVERT)
       const currentOrders = rawOrders.map((o) => {
         const idStr = getNormalizedId(o);
-        const lock = optimisticLocksRef.current.get(idStr);
+        const userOverride = userStatusOverridesRef.current.get(idStr);
 
-        if (lock) {
-          // If server caught up to the user's action, clear lock
-          if (o.status?.toUpperCase() === lock.status?.toUpperCase()) {
-            optimisticLocksRef.current.delete(idStr);
+        if (userOverride) {
+          // If server confirmed the user's action, keep in sync
+          if (o.status?.toUpperCase() === userOverride.toUpperCase()) {
             return o;
           }
-          // If within 30s of user clicking, guarantee user's state persists
-          if (now - lock.timestamp < 30000) {
-            return { ...o, status: lock.status };
-          } else {
-            optimisticLocksRef.current.delete(idStr);
-          }
+          // Server has not caught up yet: PRESERVE USER ACTION! DO NOT REVERT!
+          return { ...o, status: userOverride };
         }
         return o;
       });
@@ -344,10 +346,31 @@ export default function KDSOrdersView({
     }
   }, []);
 
+  // Serialized polling: runs every 5 seconds, only starting next request AFTER previous completes
   useEffect(() => {
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 4000);
-    return () => clearInterval(interval);
+    let isMounted = true;
+
+    const runPoll = async () => {
+      if (isPollingRef.current) return;
+      isPollingRef.current = true;
+      try {
+        await fetchOrders();
+      } catch (e) {
+        console.warn('Poll error:', e);
+      } finally {
+        isPollingRef.current = false;
+        if (isMounted) {
+          pollTimerRef.current = setTimeout(runPoll, 5000);
+        }
+      }
+    };
+
+    runPoll();
+
+    return () => {
+      isMounted = false;
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
   }, [fetchOrders]);
 
   // ZERO-LAG, ZERO BOUNCE-BACK STATUS UPDATER
@@ -356,32 +379,25 @@ export default function KDSOrdersView({
 
     const idStr = orderId.toString();
 
-    // 1. Lock state immediately with timestamp for 30s
-    optimisticLocksRef.current.set(idStr, {
-      status: newStatus,
-      timestamp: Date.now(),
-    });
+    // 1. Establish permanent user authority: polling will NEVER auto-revert this!
+    userStatusOverridesRef.current.set(idStr, newStatus);
 
-    // 2. Instantaneous synchronous state mutation (0ms reaction)
+    // 2. Instantaneous synchronous UI update (0ms latency, single movement)
     setOrders((current) =>
       current.map((o) => (getNormalizedId(o) === idStr ? { ...o, status: newStatus } : o))
     );
 
-    // 3. Background non-blocking network dispatch
+    // 3. Background non-blocking network sync
     orderService
       .updateOrderStatus(orderId, newStatus)
-      .then((res) => {
-        // Confirmed by server
-        setTimeout(() => {
-          optimisticLocksRef.current.delete(idStr);
-        }, 10000);
-      })
       .catch((err) => {
-        console.error('Error updating status on server:', err);
-        optimisticLocksRef.current.delete(idStr);
-        fetchOrders();
+        console.error('Background status sync error:', err);
+        // Do NOT revert the UI! Retry in background after 3 seconds
+        setTimeout(() => {
+          orderService.updateOrderStatus(orderId, newStatus).catch(() => {});
+        }, 3000);
       });
-  }, [fetchOrders]);
+  }, []);
 
   // Filter and Sort Orders
   const processedOrders = useMemo(() => {
@@ -392,7 +408,6 @@ export default function KDSOrdersView({
       // Time scope filter (default TODAY focuses on active tickets)
       if (timeScope === 'TODAY') {
         const orderTime = new Date(order.created_at || 0).getTime();
-        // If order is older than 24h AND already completed/served, filter out for speed
         if (orderTime < cutoff24h && (order.status === 'SERVED' || order.status === 'COMPLETED')) {
           return false;
         }
@@ -482,7 +497,7 @@ export default function KDSOrdersView({
       {/* Control Bar: Sorting (LATEST vs FIFO) & Active Window */}
       <div className="kds-flow-controls">
         <div className="flow-controls-left">
-          <span className="flow-label">Ticket Ordering Flow:</span>
+          <span className="flow-label">Order Flow:</span>
           <button
             onClick={handleToggleSort}
             className={`flow-toggle-btn ${sortOrder === 'LATEST_FIRST' ? 'active-latest' : 'active-fifo'}`}
