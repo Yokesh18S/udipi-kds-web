@@ -12,7 +12,17 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [activeCount, setActiveCount] = useState(0);
-  const [orderMode, setOrderMode] = useState('DINE_IN');
+  
+  // DEFAULT TO 'ALL' SO NEW DINE-IN, TAKEAWAY, AND DELIVERY ORDERS ARE 100% VISIBLE INSTANTLY
+  const [orderMode, setOrderMode] = useState(() => {
+    return localStorage.getItem('kds_order_mode') || 'ALL';
+  });
+
+  const handleSetOrderMode = useCallback((mode) => {
+    setOrderMode(mode);
+    localStorage.setItem('kds_order_mode', mode);
+  }, []);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [zoomScale, setZoomScale] = useState(1.0); // 1.0, 1.2, 1.4
 
@@ -140,7 +150,7 @@ export default function App() {
         currentUser={currentUser}
         activeCount={activeCount}
         orderMode={orderMode}
-        setOrderMode={setOrderMode}
+        setOrderMode={handleSetOrderMode}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         isAudioUnlocked={ringingInfo.isUnlocked}

@@ -263,6 +263,7 @@ export default function KDSOrdersView({
 }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [selectedKOTOrder, setSelectedKOTOrder] = useState(null);
   const [newlyArrivedIds, setNewlyArrivedIds] = useState(new Set());
@@ -299,7 +300,8 @@ export default function KDSOrdersView({
   const isDineIn = (order) => !isDelivery(order) && !isTakeaway(order);
 
   // Fetch Live Orders from server
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (manual = false) => {
+    if (manual) setIsRefreshing(true);
     try {
       const data = await orderService.getLiveOrders();
       let rawOrders = Array.isArray(data) ? data : [];
@@ -333,7 +335,7 @@ export default function KDSOrdersView({
             setNewlyArrivedIds(newlyAddedSet);
             newOrders.forEach((o) => knownOrderIdsRef.current.add(getNormalizedId(o)));
 
-            // Ring alarm
+            // Ring loud bell alarm immediately!
             ringKOTOrders(newOrdersCount);
 
             setTimeout(() => {
@@ -352,10 +354,13 @@ export default function KDSOrdersView({
       setError('Connection interrupted. Retrying live feed...');
     } finally {
       setLoading(false);
+      if (manual) {
+        setTimeout(() => setIsRefreshing(false), 500);
+      }
     }
   }, []);
 
-  // Serialized polling: runs every 5 seconds, only starting next request AFTER previous completes
+  // FAST SERIALIZED POLLING: RUNS EVERY 2 SECONDS FOR INSTANT LIVE ORDER REFLECTION
   useEffect(() => {
     let isMounted = true;
 
@@ -369,16 +374,28 @@ export default function KDSOrdersView({
       } finally {
         isPollingRef.current = false;
         if (isMounted) {
-          pollTimerRef.current = setTimeout(runPoll, 5000);
+          // Poll every 2 seconds so new orders show up within 2s of placement!
+          pollTimerRef.current = setTimeout(runPoll, 2000);
         }
       }
     };
 
     runPoll();
 
+    // Trigger immediate fetch when app/tab regains focus
+    const handleFocus = () => {
+      if (!isPollingRef.current) {
+        runPoll();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
     return () => {
       isMounted = false;
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
     };
   }, [fetchOrders]);
 
@@ -421,7 +438,7 @@ export default function KDSOrdersView({
         }
       }
 
-      // Order Mode filter
+      // Order Mode filter (ALL includes everything: Dine-In, Takeaway, Delivery)
       if (orderMode === 'DINE_IN' && !isDineIn(order)) return false;
       if (orderMode === 'TAKEAWAY' && !isTakeaway(order)) return false;
       if (orderMode === 'DELIVERY' && !isDelivery(order)) return false;
@@ -510,6 +527,15 @@ export default function KDSOrdersView({
         </div>
 
         <div className="mobile-sub-actions">
+          {/* Manual instant refresh button */}
+          <button
+            onClick={() => fetchOrders(true)}
+            className={`mobile-sort-btn ${isRefreshing ? 'opacity-70' : ''}`}
+            title="Sync Live Orders Now"
+          >
+            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin text-amber-400' : ''}`} />
+          </button>
+
           <button
             onClick={handleToggleSort}
             className={`mobile-sort-btn ${sortOrder === 'LATEST_FIRST' ? 'active-latest' : 'active-fifo'}`}
@@ -532,7 +558,16 @@ export default function KDSOrdersView({
       {/* DESKTOP / TABLET FLOW BAR */}
       <div className="kds-flow-controls desktop-only-flex">
         <div className="flow-controls-left">
-          <span className="flow-label">Sort Order:</span>
+          <button
+            onClick={() => fetchOrders(true)}
+            className="flow-refresh-btn"
+            title="Sync Orders Now"
+          >
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${isRefreshing ? 'animate-spin text-amber-400' : ''}`} />
+            <span>{isRefreshing ? 'Syncing...' : 'Sync Live'}</span>
+          </button>
+
+          <span className="flow-label">Sort:</span>
           <button
             onClick={handleToggleSort}
             className={`flow-toggle-btn ${sortOrder === 'LATEST_FIRST' ? 'active-latest' : 'active-fifo'}`}
@@ -574,6 +609,13 @@ export default function KDSOrdersView({
               <Flame className="w-5 h-5 text-amber-400 animate-pulse" />
               <h2>New Orders ({newOrdersList.length})</h2>
             </div>
+            <button
+              onClick={() => fetchOrders(true)}
+              className="sync-inline-btn"
+              title="Refresh Orders"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
           </div>
 
           <div className="column-orders-list">
@@ -589,7 +631,7 @@ export default function KDSOrdersView({
                 <p className="empty-sub">No pending orders right now.</p>
               </div>
             ) : (
-              newOrdersList.slice(0, 80).map((order) => {
+              newOrdersList.map((order) => {
                 const idStr = getNormalizedId(order);
                 return (
                   <KDSTicketCard
@@ -623,7 +665,7 @@ export default function KDSOrdersView({
                 <p className="empty-sub">Completed orders will appear here.</p>
               </div>
             ) : (
-              historyOrdersList.slice(0, 80).map((order) => {
+              historyOrdersList.map((order) => {
                 const idStr = getNormalizedId(order);
                 return (
                   <KDSTicketCard
