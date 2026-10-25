@@ -32,7 +32,7 @@ export default function HotelSelector({ onSelectHotel }) {
     setConnectingId(hotel.id);
     setError(null);
     try {
-      const res = await restaurantService.connectTerminal(hotel.id);
+      const res = await restaurantService.connectTerminal(hotel);
       onSelectHotel(res.user);
     } catch (err) {
       console.error('Connection failed:', err);
