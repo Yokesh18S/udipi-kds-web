@@ -77,7 +77,7 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
 
   const payBadge = isPaid
     ? { text: isUpi ? 'UPI Paid' : isPayAtCounter ? 'Counter Paid' : 'Paid', className: 'badge-paid' }
-    : { text: isPayAtCounter ? 'Pay at Counter' : 'Payment Pending', className: 'badge-unpaid' };
+    : { text: isPayAtCounter ? 'Pay at Counter' : 'Pending', className: 'badge-unpaid' };
 
   // Customer resolution
   let custName = (order?.customer_name || '').trim();
@@ -90,7 +90,7 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
     } catch (e) {}
   }
   if (!custName || custName === 'None') {
-    custName = custPhone ? 'Customer' : isDineIn ? `Table ${order.table_number}` : isTakeaway ? 'Takeaway Guest' : 'Delivery Guest';
+    custName = custPhone ? 'Customer' : isDineIn ? `Table ${order.table_number}` : isTakeaway ? 'Takeaway' : 'Delivery';
   }
 
   // Delay urgency
@@ -105,13 +105,13 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
       <div className="card-top-bar">
         <div className="card-title-group">
           <span className={`card-table-badge ${isHistory ? 'history-table' : ''}`}>
-            {isDineIn ? `TABLE ${order.table_number || '?'}` : isTakeaway ? 'TAKEAWAY' : 'DELIVERY'}
+            {isDineIn ? `T-${order.table_number || '?'}` : isTakeaway ? 'TAKEAWAY' : 'DELIVERY'}
           </span>
-          <span className="card-token-id">Token #{order.branch_order_id || orderId}</span>
+          <span className="card-token-id">#{order.branch_order_id || orderId}</span>
         </div>
 
         <div className="card-timer-badge">
-          <Clock className="w-4 h-4 inline mr-1 text-amber-400" />
+          <Clock className="w-3.5 h-3.5 inline mr-1 text-amber-400" />
           <span>{timeAgoDisplay(mins)}</span>
         </div>
       </div>
@@ -119,7 +119,7 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
       {/* 2. PROMINENT CENTER BILL NUMBER (2-FEET VISIBILITY) */}
       <div className="card-bill-centerpiece">
         <div className="bill-centerpiece-header">
-          <span className="bill-centerpiece-label">KOT BILL NUMBER</span>
+          <span className="bill-centerpiece-label">BILL NO</span>
           <span className={`payment-pill ${payBadge.className}`}>
             {payBadge.text}
           </span>
@@ -132,12 +132,20 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
       {/* 3. CUSTOMER DETAILS */}
       <div className="card-meta-row">
         <div className="card-customer-info">
-          <User className="w-4 h-4 inline mr-1.5 text-neutral-400" />
+          <User className="w-3.5 h-3.5 inline mr-1 text-neutral-400" />
           <span className="font-semibold text-neutral-200">{custName}</span>
-          {custPhone && <span className="text-neutral-400 ml-1.5">({custPhone})</span>}
+          {custPhone && <span className="text-neutral-400 ml-1">({custPhone})</span>}
         </div>
-        <span className="placed-time">Placed: {formatOrderTime(order.created_at)}</span>
+        <span className="placed-time">{formatOrderTime(order.created_at)}</span>
       </div>
+
+      {/* Special notes if present */}
+      {(order.special_instructions || order.notes) && (
+        <div className="card-notes-box">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+          <span>{order.special_instructions || order.notes}</span>
+        </div>
+      )}
 
       {/* 4. ITEMS LIST */}
       <div className={`card-items-box ${isHistory ? 'history-items' : ''}`}>
@@ -155,9 +163,9 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
       {/* 5. FOOTER & PLACED BY */}
       <div className="card-footer-info">
         {order.placed_by_name ? (
-          <span className="placed-by">Created by: {order.placed_by_name}</span>
+          <span className="placed-by">By: {order.placed_by_name}</span>
         ) : (
-          <span className="placed-by">Direct System Order</span>
+          <span className="placed-by">POS Order</span>
         )}
       </div>
 
@@ -183,7 +191,7 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
               }}
               className="btn-card-prep"
             >
-              <Utensils className="w-5 h-5 mr-1.5" /> Start Prep
+              <Utensils className="w-4 h-4 mr-1.5" /> Start Prep
             </button>
           ) : (
             <button
@@ -193,7 +201,7 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
               }}
               className="btn-card-ready"
             >
-              <CheckCircle2 className="w-6 h-6 mr-1.5" /> Mark Ready
+              <CheckCircle2 className="w-5 h-5 mr-1.5" /> Mark Ready
             </button>
           )
         ) : (
@@ -205,7 +213,7 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
               }}
               className="btn-card-serve"
             >
-              <Check className="w-5 h-5 mr-1.5" /> Mark Served
+              <Check className="w-4 h-4 mr-1.5" /> Mark Served
             </button>
           ) : (
             <span className="served-complete-tag">
@@ -239,7 +247,7 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
             title="Return ticket back to Kitchen Prep"
           >
             <RotateCcw className="w-4 h-4 mr-1 text-emerald-400" />
-            <span>Revert to Kitchen</span>
+            <span>Revert</span>
           </button>
         )}
       </div>
@@ -259,6 +267,9 @@ export default function KDSOrdersView({
   const [selectedKOTOrder, setSelectedKOTOrder] = useState(null);
   const [newlyArrivedIds, setNewlyArrivedIds] = useState(new Set());
   
+  // Mobile active tab: 'NEW' (default, 100% space for cooking) vs 'READY'
+  const [mobileActiveTab, setMobileActiveTab] = useState('NEW');
+
   // Sort order preference: 'LATEST_FIRST' (default) vs 'OLDEST_FIRST' (FIFO)
   const [sortOrder, setSortOrder] = useState(() => {
     return localStorage.getItem('kds_sort_order') || 'LATEST_FIRST';
@@ -299,11 +310,9 @@ export default function KDSOrdersView({
         const userOverride = userStatusOverridesRef.current.get(idStr);
 
         if (userOverride) {
-          // If server confirmed the user's action, keep in sync
           if (o.status?.toUpperCase() === userOverride.toUpperCase()) {
             return o;
           }
-          // Server has not caught up yet: PRESERVE USER ACTION! DO NOT REVERT!
           return { ...o, status: userOverride };
         }
         return o;
@@ -392,7 +401,6 @@ export default function KDSOrdersView({
       .updateOrderStatus(orderId, newStatus)
       .catch((err) => {
         console.error('Background status sync error:', err);
-        // Do NOT revert the UI! Retry in background after 3 seconds
         setTimeout(() => {
           orderService.updateOrderStatus(orderId, newStatus).catch(() => {});
         }, 3000);
@@ -446,11 +454,9 @@ export default function KDSOrdersView({
       const timeB = new Date(b.created_at || 0).getTime();
 
       if (sortOrder === 'LATEST_FIRST') {
-        // LILO / Latest First: Highest Bill number & newest timestamp at the top!
         if (billB !== billA) return billB - billA;
         return timeB - timeA;
       } else {
-        // FIFO / Oldest First: Oldest tickets at the top
         if (billA !== billB) return billA - billB;
         return timeA - timeB;
       }
@@ -483,31 +489,60 @@ export default function KDSOrdersView({
 
   return (
     <div className="kds-view-container">
-      {/* Live Alert Bar */}
-      {error && (
-        <div className="kds-alert-bar">
-          <AlertTriangle className="w-5 h-5 animate-pulse text-amber-300" />
-          <span>{error}</span>
-          <button onClick={fetchOrders} className="kds-alert-retry-btn">
-            <RefreshCw className="w-4 h-4 mr-1" /> Retry Now
+      {/* MOBILE INTEGRATED TOOLBAR (Single sleek row for phone screens) */}
+      <div className="mobile-view-toolbar mobile-only">
+        <div className="mobile-column-tabs">
+          <button
+            onClick={() => setMobileActiveTab('NEW')}
+            className={`mobile-col-tab ${mobileActiveTab === 'NEW' ? 'active new' : ''}`}
+          >
+            <Flame className="w-3.5 h-3.5 mr-1 text-amber-400" />
+            <span>New Orders ({newOrdersList.length})</span>
+          </button>
+
+          <button
+            onClick={() => setMobileActiveTab('READY')}
+            className={`mobile-col-tab ${mobileActiveTab === 'READY' ? 'active ready' : ''}`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+            <span>Ready ({historyOrdersList.length})</span>
           </button>
         </div>
-      )}
 
-      {/* Control Bar: Sorting (LATEST vs FIFO) & Active Window */}
-      <div className="kds-flow-controls">
+        <div className="mobile-sub-actions">
+          <button
+            onClick={handleToggleSort}
+            className={`mobile-sort-btn ${sortOrder === 'LATEST_FIRST' ? 'active-latest' : 'active-fifo'}`}
+            title="Sort: Latest Bill First vs FIFO Oldest First"
+          >
+            <ArrowDownUp className="w-3 h-3 mr-1" />
+            <span>{sortOrder === 'LATEST_FIRST' ? 'Latest' : 'FIFO'}</span>
+          </button>
+
+          <button
+            onClick={() => setTimeScope(timeScope === 'TODAY' ? 'ALL' : 'TODAY')}
+            className={`mobile-scope-btn ${timeScope === 'TODAY' ? 'active' : ''}`}
+            title="Time filter"
+          >
+            <span>{timeScope === 'TODAY' ? 'Today' : 'All'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* DESKTOP / TABLET FLOW BAR */}
+      <div className="kds-flow-controls desktop-only-flex">
         <div className="flow-controls-left">
-          <span className="flow-label">Order Flow:</span>
+          <span className="flow-label">Sort Order:</span>
           <button
             onClick={handleToggleSort}
             className={`flow-toggle-btn ${sortOrder === 'LATEST_FIRST' ? 'active-latest' : 'active-fifo'}`}
             title="Switch between Latest Bill First and FIFO Oldest First"
           >
-            <ArrowDownUp className="w-4 h-4 mr-1.5" />
+            <ArrowDownUp className="w-3.5 h-3.5 mr-1.5" />
             <span>
               {sortOrder === 'LATEST_FIRST'
-                ? '⚡ Latest Bill First (LILO Active)'
-                : '⏳ Oldest Order First (FIFO Active)'}
+                ? '⚡ Latest Bill First (LILO)'
+                : '⏳ Oldest Bill First (FIFO)'}
             </span>
           </button>
         </div>
@@ -524,41 +559,37 @@ export default function KDSOrdersView({
               onClick={() => setTimeScope('ALL')}
               className={`scope-pill ${timeScope === 'ALL' ? 'active' : ''}`}
             >
-              All Loaded ({orders.length})
+              All Recent ({orders.length})
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main 2-Column Board */}
+      {/* Responsive Board: Single full-width column on mobile, 2-column on desktop/TV */}
       <div className="kds-columns-grid">
         {/* COLUMN 1: NEW & IN-PREPARATION */}
-        <section className="kds-column column-new">
-          <div className="column-header new-orders-header">
+        <section className={`kds-column column-new ${mobileActiveTab === 'NEW' ? 'mobile-visible' : 'mobile-hidden'}`}>
+          <div className="column-header new-orders-header desktop-only-flex">
             <div className="column-header-title">
-              <Flame className="w-6 h-6 text-amber-400 animate-pulse" />
-              <h2>New Orders & Kitchen Prep</h2>
+              <Flame className="w-5 h-5 text-amber-400 animate-pulse" />
+              <h2>New Orders ({newOrdersList.length})</h2>
             </div>
-            <span className="column-count-badge count-new">
-              {newOrdersList.length} Tickets
-            </span>
           </div>
 
           <div className="column-orders-list">
             {loading && newOrdersList.length === 0 ? (
               <div className="kds-empty-state">
-                <RefreshCw className="w-10 h-10 text-amber-400 animate-spin mb-3" />
+                <RefreshCw className="w-8 h-8 text-amber-400 animate-spin mb-2" />
                 <p>Loading live kitchen orders...</p>
               </div>
             ) : newOrdersList.length === 0 ? (
               <div className="kds-empty-state">
-                <ChefHat className="w-14 h-14 text-neutral-600 mb-3" />
+                <ChefHat className="w-12 h-12 text-neutral-600 mb-2" />
                 <p className="empty-title">All Caught Up!</p>
-                <p className="empty-sub">No pending kitchen orders right now.</p>
+                <p className="empty-sub">No pending orders right now.</p>
               </div>
             ) : (
-              // Fast windowed rendering
-              newOrdersList.slice(0, 60).map((order) => {
+              newOrdersList.slice(0, 80).map((order) => {
                 const idStr = getNormalizedId(order);
                 return (
                   <KDSTicketCard
@@ -572,35 +603,27 @@ export default function KDSOrdersView({
                 );
               })
             )}
-            {newOrdersList.length > 60 && (
-              <div className="text-center text-xs text-neutral-500 py-2">
-                Showing top 60 active tickets.
-              </div>
-            )}
           </div>
         </section>
 
         {/* COLUMN 2: READY & HISTORY */}
-        <section className="kds-column column-history">
-          <div className="column-header history-header">
+        <section className={`kds-column column-history ${mobileActiveTab === 'READY' ? 'mobile-visible' : 'mobile-hidden'}`}>
+          <div className="column-header history-header desktop-only-flex">
             <div className="column-header-title">
-              <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-              <h2>Ready & Served</h2>
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              <h2>Ready & Served ({historyOrdersList.length})</h2>
             </div>
-            <span className="column-count-badge count-history">
-              {historyOrdersList.length} Tickets
-            </span>
           </div>
 
           <div className="column-orders-list">
             {historyOrdersList.length === 0 ? (
               <div className="kds-empty-state">
-                <CheckCircle2 className="w-14 h-14 text-neutral-600 mb-3" />
+                <CheckCircle2 className="w-12 h-12 text-neutral-600 mb-2" />
                 <p className="empty-title">No Ready Orders</p>
                 <p className="empty-sub">Completed orders will appear here.</p>
               </div>
             ) : (
-              historyOrdersList.slice(0, 60).map((order) => {
+              historyOrdersList.slice(0, 80).map((order) => {
                 const idStr = getNormalizedId(order);
                 return (
                   <KDSTicketCard
@@ -613,11 +636,6 @@ export default function KDSOrdersView({
                   />
                 );
               })
-            )}
-            {historyOrdersList.length > 60 && (
-              <div className="text-center text-xs text-neutral-500 py-2">
-                Showing recent 60 completed tickets.
-              </div>
             )}
           </div>
         </section>
@@ -668,7 +686,7 @@ export default function KDSOrdersView({
 
             <div className="kot-modal-actions">
               <button onClick={() => window.print()} className="btn-kot-print">
-                <Printer className="w-4 h-4 mr-2" /> Print Ticket
+                <Printer className="w-4 h-4 mr-2" /> Print
               </button>
               <button onClick={() => setSelectedKOTOrder(null)} className="btn-kot-close">
                 Close

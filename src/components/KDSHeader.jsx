@@ -6,13 +6,9 @@ import {
   VolumeX,
   Maximize2,
   Minimize2,
-  Tv,
   Building2,
-  Bell,
   Search,
-  CheckCircle,
-  Eye,
-  Zap
+  X
 } from 'lucide-react';
 import { testKOTAudio } from '../utils/kotAudio';
 
@@ -34,8 +30,8 @@ export default function KDSHeader({
   onSwitchHotel
 }) {
   const [timeStr, setTimeStr] = useState('');
-  const [dateStr, setDateStr] = useState('');
   const [testingSound, setTestingSound] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -44,15 +40,7 @@ export default function KDSHeader({
         now.toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
-          second: '2-digit',
           hour12: true,
-        })
-      );
-      setDateStr(
-        now.toLocaleDateString([], {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
         })
       );
     };
@@ -71,34 +59,43 @@ export default function KDSHeader({
     }
   };
 
+  // Clean short name for mobile display
+  const rawName = currentUser?.restaurant_name || '';
+  const hotelDisplayName = rawName
+    ? rawName.replace(/Data Udipi\s*[-—]\s*/i, '').replace(/Data Udipi/i, '').trim() || rawName
+    : 'Kitchen Display';
+
   return (
     <header className="kds-header">
-      {/* Top Main Row */}
+      {/* Top Main Row - Compact & Ultra Space-Efficient */}
       <div className="kds-header-top">
-        {/* Left: Branding & Hotel Info */}
+        {/* Left: Branding & Hotel Station */}
         <div className="header-brand-section">
-          <div className="brand-icon-box">
-            <ChefHat className="w-7 h-7 text-amber-400" />
+          <div className="brand-icon-box" title="Udipi Kitchen Display System">
+            <ChefHat className="brand-icon text-amber-400" />
           </div>
-          <div>
+
+          <div className="brand-text-block">
             <div className="header-title-row">
-              <h1 className="header-title">{currentUser?.restaurant_name || 'UDIPI KDS'}</h1>
-              <span className="terminal-badge">
-                <span className="live-dot" /> LIVE KITCHEN
+              <h1 className="header-title" title={rawName || 'Kitchen Station'}>
+                {hotelDisplayName}
+              </h1>
+              <span className="mobile-active-pill" title={`${activeCount} Live Orders`}>
+                <span className="live-dot" />
+                <span className="pill-count">{activeCount}</span>
               </span>
             </div>
-            <div className="restaurant-subtext">
-              Kitchen Display Station • Active Order Stream
+            <div className="restaurant-subtext desktop-only">
+              Kitchen Display Station • Real-Time Order Stream
             </div>
           </div>
         </div>
 
-        {/* Center: Live Clock & Active Badge */}
-        <div className="header-center-section">
+        {/* Center: Live Clock & Live Count (Desktop/Tablet Only) */}
+        <div className="header-center-section desktop-only">
           <div className="clock-box">
-            <Clock className="w-5 h-5 text-amber-400" />
+            <Clock className="w-4 h-4 text-amber-400" />
             <div className="clock-time">{timeStr}</div>
-            <div className="clock-date">{dateStr}</div>
           </div>
 
           <div className="active-counter-badge">
@@ -107,64 +104,39 @@ export default function KDSHeader({
           </div>
         </div>
 
-        {/* Right: Controls & Kiosk Tools */}
+        {/* Right: Essential Tools (Optimized for Mobile Touch) */}
         <div className="header-controls-section">
-          {/* Active Ringing Alert with Mute Button */}
           {isRinging && (
             <button
               onClick={onSilenceRing}
               className="silence-ring-btn animate-bounce"
-              title="Silence incoming order ringing"
+              title="Silence incoming order alarm"
             >
-              <VolumeX className="w-5 h-5" />
-              <span>Silence Alarm</span>
+              <VolumeX className="w-4 h-4" />
+              <span>Silence</span>
             </button>
           )}
 
-          {/* Sound Armed Status / Test */}
+          {/* Sound Arm / Test */}
           <button
             onClick={handleTestSound}
             disabled={testingSound}
             className={`control-btn ${isAudioUnlocked ? 'btn-audio-active' : 'btn-audio-locked'}`}
-            title={isAudioUnlocked ? 'Sound alert active. Tap to test speaker.' : 'Sound alert locked by browser. Tap to activate.'}
+            title={isAudioUnlocked ? 'Audio Active (Click to test loud bell)' : 'Audio Locked (Click to enable)'}
           >
             {isAudioUnlocked ? (
-              <>
-                <Volume2 className={`w-4 h-4 text-emerald-400 ${testingSound ? 'animate-ping' : ''}`} />
-                <span className="control-btn-text">Audio On</span>
-              </>
+              <Volume2 className={`w-4 h-4 text-emerald-400 ${testingSound ? 'animate-ping' : ''}`} />
             ) : (
-              <>
-                <VolumeX className="w-4 h-4 text-amber-400 animate-pulse" />
-                <span className="control-btn-text">Unlock Audio</span>
-              </>
+              <VolumeX className="w-4 h-4 text-amber-400 animate-pulse" />
             )}
+            <span className="desktop-only">{isAudioUnlocked ? 'Audio' : 'Unlock'}</span>
           </button>
 
-          {/* Screen Wake Lock Status */}
-          <div
-            className={`wake-lock-badge ${isWakeLockActive ? 'active' : 'inactive'}`}
-            title={isWakeLockActive ? 'Screen sleep prevention active' : 'WakeLock inactive'}
-          >
-            <Zap className={`w-3.5 h-3.5 ${isWakeLockActive ? 'text-emerald-400' : 'text-neutral-500'}`} />
-            <span className="wake-text">{isWakeLockActive ? 'Awake' : 'Sleep'}</span>
-          </div>
-
-          {/* TV Scale Zoom Switcher */}
-          <button
-            onClick={onCycleZoom}
-            className="control-btn btn-secondary"
-            title="Cycle Display Zoom (Standard / Large / TV Wall)"
-          >
-            <Tv className="w-4 h-4 text-sky-400" />
-            <span className="control-btn-text">{Math.round(zoomScale * 100)}%</span>
-          </button>
-
-          {/* Fullscreen Kiosk Mode Toggle */}
+          {/* Fullscreen Toggle */}
           <button
             onClick={onToggleFullscreen}
-            className="control-btn btn-secondary"
-            title={isFullscreen ? 'Exit Kiosk Fullscreen' : 'Enter Kiosk Fullscreen (F11)'}
+            className="control-btn"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
           >
             {isFullscreen ? (
               <Minimize2 className="w-4 h-4 text-neutral-300" />
@@ -173,21 +145,36 @@ export default function KDSHeader({
             )}
           </button>
 
-          {/* Switch Hotel Station */}
+          {/* Search Toggle (Mobile) */}
+          <button
+            onClick={() => setShowMobileSearch(!showMobileSearch)}
+            className={`control-btn mobile-only ${showMobileSearch || searchTerm ? 'btn-active-search' : ''}`}
+            title="Search Orders"
+          >
+            <Search className="w-4 h-4 text-neutral-300" />
+          </button>
+
+          {/* Switch Hotel */}
           <button
             onClick={onSwitchHotel}
-            className="control-btn btn-secondary"
-            title="Switch Connected Hotel"
+            className="control-btn btn-switch-hotel"
+            title="Switch Hotel Station"
           >
             <Building2 className="w-4 h-4 text-amber-400" />
-            <span className="control-btn-text">Switch Hotel</span>
+            <span className="desktop-only">Switch</span>
           </button>
         </div>
       </div>
 
-      {/* Sub Header: Navigation Modes & Search */}
-      <div className="kds-header-sub">
+      {/* Sub Header: Navigation Modes & Search (Ultra-Compact Single Row) */}
+      <div className={`kds-header-sub ${showMobileSearch ? 'show-mobile-search' : ''}`}>
         <div className="mode-tabs">
+          <button
+            onClick={() => setOrderMode('ALL')}
+            className={`mode-tab ${orderMode === 'ALL' ? 'active all' : ''}`}
+          >
+            All
+          </button>
           <button
             onClick={() => setOrderMode('DINE_IN')}
             className={`mode-tab ${orderMode === 'DINE_IN' ? 'active dine-in' : ''}`}
@@ -206,29 +193,20 @@ export default function KDSHeader({
           >
             Delivery
           </button>
-          <button
-            onClick={() => setOrderMode('ALL')}
-            className={`mode-tab ${orderMode === 'ALL' ? 'active all' : ''}`}
-          >
-            All Orders
-          </button>
         </div>
 
-        <div className="header-search-wrapper">
-          <Search className="search-icon" />
+        <div className={`header-search-wrapper ${showMobileSearch ? 'mobile-visible' : 'desktop-only-flex'}`}>
+          <Search className="search-icon w-3.5 h-3.5" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search Bill #, Table #, Order ID..."
+            placeholder="Search Bill #, Table #, Phone..."
             className="header-search-input"
           />
           {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="search-clear-btn"
-            >
-              ×
+            <button onClick={() => setSearchTerm('')} className="search-clear-btn" title="Clear search">
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>

@@ -1687,3 +1687,657 @@ body {
   transform: scale(0.94) !important;
   transition: transform 0.05s ease-out !important;
 }
+
+/* ========================================================
+   RESPONSIVE MOBILE & CROSS-PLATFORM OPTIMIZATIONS
+   ======================================================== */
+
+.desktop-only {
+  display: block;
+}
+
+.desktop-only-flex {
+  display: flex;
+}
+
+.mobile-only {
+  display: none !important;
+}
+
+.mobile-view-toolbar {
+  display: none;
+}
+
+.mobile-column-tabs {
+  display: none;
+}
+
+.mobile-active-pill {
+  display: none;
+}
+
+/* ========================================================
+   TABLETS & DESKTOPS (>= 769px: TV, Kitchen Monitor, iPad)
+   ======================================================== */
+@media (min-width: 769px) {
+  .kds-column.mobile-hidden {
+    display: flex !important;
+  }
+}
+
+/* ========================================================
+   MOBILE DEVICES (<= 768px: All iPhone & Android Models)
+   ======================================================== */
+@media (max-width: 768px) {
+  /* Cross-Platform Safe Area Viewport */
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .desktop-only,
+  .desktop-only-flex {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: flex !important;
+  }
+
+  /* Ultra-Slim Kiosk Banner on Mobile (Zero Space Waste) */
+  .kiosk-banner-wrapper {
+    padding: 6px 12px;
+    background: linear-gradient(90deg, #9a3412 0%, #c2410c 100%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .kiosk-banner-content {
+    gap: 8px;
+    justify-content: space-between;
+  }
+
+  .banner-sound-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .kiosk-banner-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #fff;
+  }
+
+  .kiosk-btn-primary {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+  }
+
+  .kiosk-btn-secondary {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+  }
+
+  .kiosk-btn-dismiss {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ----------------------------------------------------
+     ULTRA-COMPACT MOBILE HEADER (TOTAL HEIGHT ~38px - 42px)
+     ---------------------------------------------------- */
+  .kds-header {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .kds-header-top {
+    padding: 6px 10px;
+    gap: 6px;
+    min-height: 40px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .header-brand-section {
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .brand-icon-box {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(245, 158, 11, 0.08) 100%);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    flex-shrink: 0;
+  }
+
+  .brand-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .brand-text-block {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .header-title {
+    font-size: 0.96rem;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #ffffff;
+    max-width: 130px;
+  }
+
+  .mobile-active-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(245, 158, 11, 0.18);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  .mobile-active-pill .live-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .header-controls-section {
+    gap: 5px;
+    flex-shrink: 0;
+  }
+
+  .control-btn {
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: #192231;
+    border: 1px solid var(--border-subtle);
+    color: #cbd5e1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .control-btn.btn-audio-locked {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.5);
+    animation: pulseBorder 1.5s infinite;
+  }
+
+  @keyframes pulseBorder {
+    0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+  }
+
+  .control-btn.btn-active-search {
+    background: #1e293b;
+    border-color: #38bdf8;
+    color: #38bdf8;
+  }
+
+  .silence-ring-btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    gap: 4px;
+  }
+
+  /* Sub-bar: Order Modes (Takeaway, Dine-In, Delivery, All) */
+  .kds-header-sub {
+    padding: 3px 8px 4px;
+    background: #0f151f;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mode-tabs {
+    display: flex;
+    width: 100%;
+    gap: 4px;
+    background: #151c27;
+    padding: 2px;
+    border-radius: 8px;
+  }
+
+  .mode-tab {
+    flex: 1;
+    padding: 5px 4px;
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-align: center;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .mode-tab.active.all {
+    background: #334155;
+    color: #ffffff;
+  }
+
+  .mode-tab.active.dine-in {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 1px 6px rgba(2, 132, 199, 0.4);
+  }
+
+  .mode-tab.active.takeaway {
+    background: #d97706;
+    color: #ffffff;
+    box-shadow: 0 1px 6px rgba(217, 119, 6, 0.4);
+  }
+
+  .mode-tab.active.delivery {
+    background: #7c3aed;
+    color: #ffffff;
+    box-shadow: 0 1px 6px rgba(124, 58, 237, 0.4);
+  }
+
+  /* Expandable Mobile Search */
+  .header-search-wrapper {
+    display: none;
+  }
+
+  .header-search-wrapper.mobile-visible {
+    display: flex;
+    width: 100%;
+    margin-top: 2px;
+    position: relative;
+    align-items: center;
+  }
+
+  .header-search-input {
+    width: 100%;
+    padding: 6px 28px 6px 30px;
+    font-size: 0.8rem;
+    background: #1a2230;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    color: #f1f5f9;
+  }
+
+  .header-search-wrapper .search-icon {
+    position: absolute;
+    left: 8px;
+    color: #64748b;
+  }
+
+  .search-clear-btn {
+    position: absolute;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ----------------------------------------------------
+     MAIN CONTAINER & FULL-WIDTH SCREEN FOR NEW ORDERS
+     ---------------------------------------------------- */
+  .kds-main-content {
+    padding: 4px 6px 20px 6px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .kds-view-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+  }
+
+  /* Mobile Integrated Single-Row Toolbar */
+  .mobile-view-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    background: #111722;
+    border: 1px solid var(--border-subtle);
+    padding: 3px 4px;
+    border-radius: 10px;
+  }
+
+  .mobile-column-tabs {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .mobile-col-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 6px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .mobile-col-tab.active.new {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #111722;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+  }
+
+  .mobile-col-tab.active.ready {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  }
+
+  .mobile-sub-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mobile-sort-btn {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: none;
+    font-size: 0.74rem;
+    font-weight: 800;
+    cursor: pointer;
+    background: #1e293b;
+    color: #f1f5f9;
+  }
+
+  .mobile-sort-btn.active-latest {
+    background: #d97706;
+    color: #111722;
+  }
+
+  .mobile-sort-btn.active-fifo {
+    background: #0284c7;
+    color: #ffffff;
+  }
+
+  .mobile-scope-btn {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: none;
+    font-size: 0.74rem;
+    font-weight: 800;
+    background: #1e293b;
+    color: #94a3b8;
+    cursor: pointer;
+  }
+
+  .mobile-scope-btn.active {
+    background: #334155;
+    color: #ffffff;
+  }
+
+  /* Full Screen Width For Selected Column */
+  .kds-columns-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    flex: 1;
+  }
+
+  .kds-column.mobile-hidden {
+    display: none !important;
+  }
+
+  .kds-column.mobile-visible {
+    display: flex !important;
+    width: 100% !important;
+    border-radius: 0;
+    background: transparent;
+    border: none;
+    padding: 0;
+    flex: 1;
+  }
+
+  .column-header {
+    display: none !important;
+  }
+
+  .column-orders-list {
+    padding: 4px 0 24px 0;
+    gap: 10px;
+    flex: 1;
+  }
+
+  /* ----------------------------------------------------
+     TICKET CARD OPTIMIZED FOR ALL MOBILES
+     ---------------------------------------------------- */
+  .kds-card {
+    padding: 10px 12px;
+    gap: 6px;
+    border-radius: 14px;
+    background: #151c27;
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+
+  .card-top-bar {
+    gap: 6px;
+  }
+
+  .card-table-badge {
+    font-size: 0.88rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+
+  .card-token-id {
+    font-size: 0.82rem;
+    color: #94a3b8;
+  }
+
+  .card-timer-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 6px;
+  }
+
+  /* CENTERPIECE BILL NUMBER: 2-FEET DISTANCE VISIBILITY ON PHONES */
+  .card-bill-centerpiece {
+    padding: 8px 12px;
+    margin: 3px 0 5px 0;
+    border-radius: 12px;
+    border-width: 2px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(245, 158, 11, 0.06) 100%);
+    box-shadow: 0 3px 14px rgba(245, 158, 11, 0.25);
+  }
+
+  .bill-centerpiece-header {
+    margin-bottom: 2px;
+  }
+
+  .bill-centerpiece-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+  }
+
+  .bill-centerpiece-number {
+    font-size: clamp(1.85rem, 6.5vw, 2.3rem);
+    font-weight: 900;
+    color: #fbbf24;
+    text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+    line-height: 1.1;
+  }
+
+  .card-meta-row {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-bottom: 2px;
+  }
+
+  .card-notes-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #fde68a;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  .card-items-box {
+    padding: 8px 10px;
+    gap: 6px;
+    background: #0f141c;
+    border-radius: 8px;
+  }
+
+  .card-item-row {
+    font-size: 0.92rem;
+    gap: 8px;
+  }
+
+  .item-qty-badge {
+    min-width: 28px;
+    height: 24px;
+    font-size: 0.88rem;
+    font-weight: 900;
+    background: #2a1f0d;
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 6px;
+    padding: 0 4px;
+  }
+
+  .card-footer-info {
+    font-size: 0.74rem;
+    color: #64748b;
+  }
+
+  /* LARGE TOUCH TARGET BUTTONS (44px HEIGHT) */
+  .card-action-bar {
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .btn-card-prep,
+  .btn-card-ready,
+  .btn-card-serve {
+    padding: 11px 12px;
+    font-size: 0.95rem;
+    font-weight: 900;
+    min-height: 44px;
+    border-radius: 10px;
+  }
+
+  .btn-card-secondary,
+  .btn-card-undo {
+    padding: 11px 10px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    min-height: 44px;
+    border-radius: 10px;
+  }
+}
+
+/* ========================================================
+   LANDSCAPE PHONE ORIENTATION (HEIGHT <= 500px)
+   ======================================================== */
+@media (max-height: 500px) and (orientation: landscape) {
+  .kds-header-top {
+    padding: 3px 8px;
+    min-height: 32px;
+  }
+
+  .brand-icon-box {
+    width: 24px;
+    height: 24px;
+  }
+
+  .header-title {
+    font-size: 0.85rem;
+  }
+
+  .control-btn {
+    min-height: 28px;
+    padding: 3px 6px;
+  }
+
+  .kds-header-sub {
+    padding: 2px 6px;
+  }
+
+  .mode-tab {
+    padding: 3px 4px;
+    font-size: 0.72rem;
+  }
+
+  .mobile-view-toolbar {
+    padding: 2px 4px;
+  }
+
+  .mobile-col-tab {
+    padding: 4px 6px;
+    font-size: 0.74rem;
+  }
+
+  .card-bill-centerpiece {
+    padding: 4px 8px;
+  }
+
+  .bill-centerpiece-number {
+    font-size: 1.6rem;
+  }
+
+  .btn-card-prep,
+  .btn-card-ready,
+  .btn-card-serve,
+  .btn-card-secondary,
+  .btn-card-undo {
+    min-height: 36px;
+    padding: 6px 10px;
+  }
+}
