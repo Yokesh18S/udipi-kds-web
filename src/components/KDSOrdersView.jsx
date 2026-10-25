@@ -12,10 +12,237 @@ import {
   ArrowRight,
   RotateCcw,
   RefreshCw,
-  Utensils
+  Utensils,
+  ArrowDownUp,
+  SlidersHorizontal,
+  Flame,
+  Check
 } from 'lucide-react';
 import { orderService } from '../services/api';
 import { ringKOTOrders } from '../utils/kotAudio';
+
+// Helper to normalize order id to string
+const getNormalizedId = (order) => (order?.order_id ?? order?.id)?.toString();
+
+// Memoized Individual Ticket Card for 0ms render latency
+const KDSTicketCard = React.memo(function KDSTicketCard({
+  order,
+  isNewlyArrived,
+  isHistory,
+  onUpdateStatus,
+  onOpenKOT
+}) {
+  const orderId = order.order_id || order.id;
+  const status = (order.status || '').toUpperCase();
+  const isReady = status === 'READY';
+
+  const isDelivery = order.order_type?.toLowerCase() === 'delivery';
+  const isTakeaway = !isDelivery && (!order.table_number || order.table_number === 'N/A' || order.table_number.toString().toLowerCase() === 'takeaway');
+  const isDineIn = !isDelivery && !isTakeaway;
+
+  // Calculate elapsed time
+  let mins = 0;
+  if (order.created_at) {
+    let dStr = typeof order.created_at === 'string' ? order.created_at : order.created_at.toString();
+    if (!dStr.includes('Z') && !dStr.includes('+')) {
+      dStr = dStr.replace(' ', 'T') + 'Z';
+    }
+    const diffMs = new Date() - new Date(dStr);
+    mins = Math.max(0, Math.floor(diffMs / 60000));
+  }
+
+  const timeAgoDisplay = (m) => {
+    if (m < 1) return 'Just now';
+    if (m < 60) return `${m}m ago`;
+    const hrs = Math.floor(m / 60);
+    return `${hrs}h ${m % 60}m ago`;
+  };
+
+  const formatOrderTime = (dateString) => {
+    if (!dateString) return '';
+    let dStr = typeof dateString === 'string' ? dateString : dateString.toString();
+    if (!dStr.includes('Z') && !dStr.includes('+')) {
+      dStr = dStr.replace(' ', 'T') + 'Z';
+    }
+    const d = new Date(dStr);
+    return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  };
+
+  // Payment badge
+  const method = (order?.payment_method || '').toLowerCase().trim();
+  const pStatus = (order?.payment_status || '').toLowerCase().trim();
+  const isPaid = pStatus === 'paid';
+  const isPayAtCounter = method.includes('cash') || method.includes('counter') || method.includes('cod');
+  const isUpi = method.includes('upi') || method.includes('razorpay') || method.includes('online');
+
+  const payBadge = isPaid
+    ? { text: isUpi ? 'UPI Paid' : isPayAtCounter ? 'Counter Paid' : 'Paid', className: 'badge-paid' }
+    : { text: isPayAtCounter ? 'Pay at Counter' : 'Payment Pending', className: 'badge-unpaid' };
+
+  // Customer resolution
+  let custName = (order?.customer_name || '').trim();
+  let custPhone = (order?.customer_phone || '').trim();
+  if (order?.delivery_address) {
+    try {
+      const addr = typeof order.delivery_address === 'string' ? JSON.parse(order.delivery_address) : order.delivery_address;
+      if (addr?.contact_name || addr?.name) custName = addr.contact_name || addr.name;
+      if (addr?.contact_phone || addr?.phone) custPhone = addr.contact_phone || addr.phone;
+    } catch (e) {}
+  }
+  if (!custName || custName === 'None') {
+    custName = custPhone ? 'Customer' : isDineIn ? `Table ${order.table_number}` : isTakeaway ? 'Takeaway Guest' : 'Delivery Guest';
+  }
+
+  // Delay urgency
+  const delayClass = mins >= 20 ? 'delay-urgent' : mins >= 10 ? 'delay-warning' : 'delay-normal';
+  const billNumber = order.bill_no || order.branch_order_id || orderId;
+
+  return (
+    <div
+      className={`kds-card ${isHistory ? 'card-history' : 'card-new'} ${isReady ? 'ready-pulse' : ''} ${!isHistory && !isReady ? delayClass : ''} ${isNewlyArrived ? 'card-newly-arrived' : ''}`}
+    >
+      {/* 1. TOP METADATA ROW */}
+      <div className="card-top-bar">
+        <div className="card-title-group">
+          <span className={`card-table-badge ${isHistory ? 'history-table' : ''}`}>
+            {isDineIn ? `TABLE ${order.table_number || '?'}` : isTakeaway ? 'TAKEAWAY' : 'DELIVERY'}
+          </span>
+          <span className="card-token-id">Token #{order.branch_order_id || orderId}</span>
+        </div>
+
+        <div className="card-timer-badge">
+          <Clock className="w-4 h-4 inline mr-1 text-amber-400" />
+          <span>{timeAgoDisplay(mins)}</span>
+        </div>
+      </div>
+
+      {/* 2. PROMINENT CENTER BILL NUMBER (2-FEET VISIBILITY) */}
+      <div className="card-bill-centerpiece">
+        <div className="bill-centerpiece-header">
+          <span className="bill-centerpiece-label">KOT BILL NUMBER</span>
+          <span className={`payment-pill ${payBadge.className}`}>
+            {payBadge.text}
+          </span>
+        </div>
+        <div className="bill-centerpiece-number">
+          BILL #{billNumber}
+        </div>
+      </div>
+
+      {/* 3. CUSTOMER DETAILS */}
+      <div className="card-meta-row">
+        <div className="card-customer-info">
+          <User className="w-4 h-4 inline mr-1.5 text-neutral-400" />
+          <span className="font-semibold text-neutral-200">{custName}</span>
+          {custPhone && <span className="text-neutral-400 ml-1.5">({custPhone})</span>}
+        </div>
+        <span className="placed-time">Placed: {formatOrderTime(order.created_at)}</span>
+      </div>
+
+      {/* 4. ITEMS LIST */}
+      <div className={`card-items-box ${isHistory ? 'history-items' : ''}`}>
+        {(order.items || []).map((item, idx) => (
+          <div key={idx} className="card-item-row">
+            <span className={`item-qty-badge ${isHistory ? 'history-qty' : ''}`}>
+              {item.quantity}x
+            </span>
+            <span className="item-name font-bold">{item.name}</span>
+            <span className="item-price">₹{(item.price * item.quantity).toFixed(0)}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* 5. FOOTER & PLACED BY */}
+      <div className="card-footer-info">
+        {order.placed_by_name ? (
+          <span className="placed-by">Created by: {order.placed_by_name}</span>
+        ) : (
+          <span className="placed-by">Direct System Order</span>
+        )}
+      </div>
+
+      {/* 6. INSTANT 0MS ACTION BUTTONS */}
+      <div className="card-action-bar">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenKOT(order);
+          }}
+          className="btn-card-secondary"
+          title="Print KOT Ticket"
+        >
+          <Printer className="w-4 h-4 mr-1" /> KOT
+        </button>
+
+        {!isHistory ? (
+          status !== 'PREPARING' ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateStatus(orderId, 'PREPARING');
+              }}
+              className="btn-card-prep"
+            >
+              <Utensils className="w-5 h-5 mr-1.5" /> Start Prep
+            </button>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateStatus(orderId, 'READY');
+              }}
+              className="btn-card-ready"
+            >
+              <CheckCircle2 className="w-6 h-6 mr-1.5" /> Mark Ready
+            </button>
+          )
+        ) : (
+          isReady ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateStatus(orderId, 'SERVED');
+              }}
+              className="btn-card-serve"
+            >
+              <Check className="w-5 h-5 mr-1.5" /> Mark Served
+            </button>
+          ) : (
+            <span className="served-complete-tag">
+              ✓ Order Complete
+            </span>
+          )
+        )}
+
+        {status === 'PREPARING' && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateStatus(orderId, 'CONFIRMED');
+            }}
+            className="btn-card-undo"
+            title="Revert to Pending"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        )}
+
+        {isHistory && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateStatus(orderId, 'PREPARING');
+            }}
+            className="btn-card-undo"
+            title="Reopen back to Kitchen"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
 
 export default function KDSOrdersView({
   orderMode,
@@ -26,170 +253,78 @@ export default function KDSOrdersView({
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [lastSyncTime, setLastSyncTime] = useState(null);
   const [selectedKOTOrder, setSelectedKOTOrder] = useState(null);
   const [newlyArrivedIds, setNewlyArrivedIds] = useState(new Set());
+  
+  // Sort order preference: 'LATEST_FIRST' (default) vs 'OLDEST_FIRST' (FIFO)
+  const [sortOrder, setSortOrder] = useState(() => {
+    return localStorage.getItem('kds_sort_order') || 'LATEST_FIRST';
+  });
+
+  // Time scope filter: 'TODAY' (default for speed) vs 'ALL'
+  const [timeScope, setTimeScope] = useState('TODAY');
 
   const knownOrderIdsRef = useRef(null);
-  const pendingUpdatesRef = useRef(new Map());
+  
+  // Optimistic lock with timestamp to completely prevent bounce-back
+  const optimisticLocksRef = useRef(new Map());
 
-  const isDelivery = (order) => {
-    return order.order_type?.toLowerCase() === 'delivery';
+  const handleToggleSort = () => {
+    const nextSort = sortOrder === 'LATEST_FIRST' ? 'OLDEST_FIRST' : 'LATEST_FIRST';
+    setSortOrder(nextSort);
+    localStorage.setItem('kds_sort_order', nextSort);
   };
 
-  const isTakeaway = (order) => {
-    return (
-      !isDelivery(order) &&
-      (!order.table_number ||
-        order.table_number === 'N/A' ||
-        order.table_number.toString().toLowerCase() === 'takeaway')
-    );
-  };
+  const isDelivery = (order) => order.order_type?.toLowerCase() === 'delivery';
+  const isTakeaway = (order) => !isDelivery(order) && (!order.table_number || order.table_number === 'N/A' || order.table_number.toString().toLowerCase() === 'takeaway');
+  const isDineIn = (order) => !isDelivery(order) && !isTakeaway(order);
 
-  const isDineIn = (order) => {
-    return !isDelivery(order) && !isTakeaway(order);
-  };
-
-  const formatOrderTime = (dateString) => {
-    if (!dateString) return '';
-    let dStr = typeof dateString === 'string' ? dateString : dateString.toString();
-    if (!dStr.includes('Z') && !dStr.includes('+')) {
-      dStr = dStr.replace(' ', 'T') + 'Z';
-    }
-    const d = new Date(dStr);
-    const validDate = isNaN(d.getTime()) ? new Date(dateString) : d;
-    if (isNaN(validDate.getTime())) return '';
-    return validDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-  };
-
-  const timeAgoMinutes = (dateString) => {
-    if (!dateString) return 0;
-    let dStr = typeof dateString === 'string' ? dateString : dateString.toString();
-    if (!dStr.includes('Z') && !dStr.includes('+')) {
-      dStr = dStr.replace(' ', 'T') + 'Z';
-    }
-    const diffMs = new Date() - new Date(dStr);
-    return Math.max(0, Math.floor(diffMs / 60000));
-  };
-
-  const timeAgoDisplay = (minutes) => {
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hrs = Math.floor(minutes / 60);
-    return `${hrs}h ${minutes % 60}m ago`;
-  };
-
-  const getCustomerDetails = (order) => {
-    let name = (order?.customer_name || '').trim();
-    let phone = (order?.customer_phone || '').trim();
-
-    let deliveryObj = null;
-    if (order?.delivery_address) {
-      if (typeof order.delivery_address === 'string') {
-        try {
-          deliveryObj = JSON.parse(order.delivery_address);
-        } catch (e) {
-          deliveryObj = null;
-        }
-      } else if (typeof order.delivery_address === 'object') {
-        deliveryObj = order.delivery_address;
-      }
-    }
-
-    if (deliveryObj) {
-      if (!name || name === 'Guest' || name === phone) {
-        const addrName = deliveryObj.contact_name || deliveryObj.name;
-        if (addrName) name = addrName.trim();
-      }
-      if (!phone) {
-        const addrPhone = deliveryObj.contact_phone || deliveryObj.phone;
-        if (addrPhone) phone = addrPhone.trim();
-      }
-    }
-
-    if (!name || name === 'None') {
-      if (phone) {
-        name = 'Customer';
-      } else if (order?.table_number && !isTakeaway(order) && !isDelivery(order)) {
-        name = `Table ${order.table_number}`;
-      } else {
-        name = isTakeaway(order) ? 'Takeaway Guest' : isDelivery(order) ? 'Delivery Guest' : 'Guest';
-      }
-    }
-
-    return { name, phone };
-  };
-
-  const getPaymentBadge = (order) => {
-    const method = (order?.payment_method || '').toLowerCase().trim();
-    const status = (order?.payment_status || '').toLowerCase().trim();
-    const isPaid = status === 'paid';
-
-    const isPayAtCounter =
-      method.includes('cash') ||
-      method.includes('counter') ||
-      method.includes('cod') ||
-      method.includes('pay at counter');
-
-    const isUpi =
-      method.includes('upi') ||
-      method.includes('razorpay') ||
-      method.includes('online') ||
-      method.includes('gpay') ||
-      method.includes('phonepe');
-
-    if (isPaid) {
-      return {
-        isPaid: true,
-        text: isUpi ? 'UPI Paid' : isPayAtCounter ? 'Counter Paid' : 'Paid',
-        className: 'badge-paid'
-      };
-    }
-
-    return {
-      isPaid: false,
-      text: isPayAtCounter ? 'Pay at Counter' : 'Payment Pending',
-      className: 'badge-unpaid'
-    };
-  };
-
-  // Fetch Live Orders
+  // Fetch Live Orders from server
   const fetchOrders = useCallback(async () => {
     try {
       const data = await orderService.getLiveOrders();
-      let currentOrders = Array.isArray(data) ? data : [];
+      let rawOrders = Array.isArray(data) ? data : [];
 
-      // Preserve optimistic updates
-      if (pendingUpdatesRef.current.size > 0) {
-        currentOrders = currentOrders.map((o) => {
-          const pending = pendingUpdatesRef.current.get(o.order_id);
-          return pending ? { ...o, status: pending } : o;
-        });
-      }
+      // Apply optimistic overrides so server polling NEVER reverts recent user button clicks
+      const now = Date.now();
+      const currentOrders = rawOrders.map((o) => {
+        const idStr = getNormalizedId(o);
+        const lock = optimisticLocksRef.current.get(idStr);
 
+        if (lock) {
+          // If server caught up to the user's action, clear lock
+          if (o.status?.toUpperCase() === lock.status?.toUpperCase()) {
+            optimisticLocksRef.current.delete(idStr);
+            return o;
+          }
+          // If within 30s of user clicking, guarantee user's state persists
+          if (now - lock.timestamp < 30000) {
+            return { ...o, status: lock.status };
+          } else {
+            optimisticLocksRef.current.delete(idStr);
+          }
+        }
+        return o;
+      });
+
+      // Detect newly arrived incoming tickets for loud audio ringing
       if (currentOrders.length > 0) {
-        const currentIds = currentOrders.map((o) => o.order_id || o.id);
+        const currentIds = currentOrders.map((o) => getNormalizedId(o));
 
         if (knownOrderIdsRef.current === null) {
-          // Initial load
           knownOrderIdsRef.current = new Set(currentIds);
         } else {
-          // Check for new arrivals
-          const newOrders = currentOrders.filter(
-            (o) => !knownOrderIdsRef.current.has(o.order_id || o.id)
-          );
+          const newOrders = currentOrders.filter((o) => !knownOrderIdsRef.current.has(getNormalizedId(o)));
           const newOrdersCount = newOrders.length;
 
           if (newOrdersCount > 0) {
-            const newlyAddedSet = new Set(newOrders.map((o) => o.order_id || o.id));
+            const newlyAddedSet = new Set(newOrders.map((o) => getNormalizedId(o)));
             setNewlyArrivedIds(newlyAddedSet);
+            newOrders.forEach((o) => knownOrderIdsRef.current.add(getNormalizedId(o)));
 
-            newOrders.forEach((o) => knownOrderIdsRef.current.add(o.order_id || o.id));
-
-            // Ring alarm loudly
+            // Ring alarm
             ringKOTOrders(newOrdersCount);
 
-            // Remove visual highlight after 12 seconds
             setTimeout(() => {
               setNewlyArrivedIds(new Set());
             }, 12000);
@@ -200,7 +335,6 @@ export default function KDSOrdersView({
       }
 
       setOrders(currentOrders);
-      setLastSyncTime(new Date());
       setError(null);
     } catch (err) {
       console.error('Error fetching live orders:', err);
@@ -212,77 +346,120 @@ export default function KDSOrdersView({
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 4000); // 4-second polling for immediate kitchen alerts
+    const interval = setInterval(fetchOrders, 4000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
-  // Update order status with 0ms optimistic UI update
+  // ZERO-LAG, ZERO BOUNCE-BACK STATUS UPDATER
   const updateOrderStatus = useCallback((orderId, newStatus) => {
     if (!orderId) return;
 
-    pendingUpdatesRef.current.set(orderId, newStatus);
+    const idStr = orderId.toString();
 
-    // 0ms instant UI reaction
+    // 1. Lock state immediately with timestamp for 30s
+    optimisticLocksRef.current.set(idStr, {
+      status: newStatus,
+      timestamp: Date.now(),
+    });
+
+    // 2. Instantaneous synchronous state mutation (0ms reaction)
     setOrders((current) =>
-      current.map((o) => (o.order_id === orderId ? { ...o, status: newStatus } : o))
+      current.map((o) => (getNormalizedId(o) === idStr ? { ...o, status: newStatus } : o))
     );
 
+    // 3. Background non-blocking network dispatch
     orderService
       .updateOrderStatus(orderId, newStatus)
-      .then(() => {
+      .then((res) => {
+        // Confirmed by server
         setTimeout(() => {
-          pendingUpdatesRef.current.delete(orderId);
-        }, 5000);
+          optimisticLocksRef.current.delete(idStr);
+        }, 10000);
       })
       .catch((err) => {
-        console.error('Error updating order status:', err);
-        pendingUpdatesRef.current.delete(orderId);
+        console.error('Error updating status on server:', err);
+        optimisticLocksRef.current.delete(idStr);
         fetchOrders();
       });
   }, [fetchOrders]);
 
-  // Filter orders according to active mode & search term
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
+  // Filter and Sort Orders
+  const processedOrders = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    const cutoff24h = Date.now() - 24 * 60 * 60 * 1000;
+
+    const filtered = orders.filter((order) => {
+      // Time scope filter (default TODAY focuses on active tickets)
+      if (timeScope === 'TODAY') {
+        const orderTime = new Date(order.created_at || 0).getTime();
+        // If order is older than 24h AND already completed/served, filter out for speed
+        if (orderTime < cutoff24h && (order.status === 'SERVED' || order.status === 'COMPLETED')) {
+          return false;
+        }
+      }
+
+      // Order Mode filter
       if (orderMode === 'DINE_IN' && !isDineIn(order)) return false;
       if (orderMode === 'TAKEAWAY' && !isTakeaway(order)) return false;
       if (orderMode === 'DELIVERY' && !isDelivery(order)) return false;
 
-      if (!searchTerm.trim()) return true;
-      const term = searchTerm.toLowerCase().trim();
-      const orderIdStr = (order.order_id || '').toString().toLowerCase();
+      // Search filter
+      if (!term) return true;
+      const orderIdStr = (order.order_id || order.id || '').toString().toLowerCase();
       const branchOrderIdStr = (order.branch_order_id || '').toString().toLowerCase();
       const billNoStr = (order.bill_no || '').toString().toLowerCase();
       const tableStr = (order.table_number || '').toString().toLowerCase();
-      const cust = getCustomerDetails(order);
+      const custName = (order.customer_name || '').toLowerCase();
+      const custPhone = (order.customer_phone || '').toLowerCase();
 
       return (
         orderIdStr.includes(term) ||
         branchOrderIdStr.includes(term) ||
         billNoStr.includes(term) ||
         tableStr.includes(term) ||
-        cust.name.toLowerCase().includes(term) ||
-        cust.phone.includes(term)
+        custName.includes(term) ||
+        custPhone.includes(term)
       );
     });
-  }, [orders, orderMode, searchTerm]);
 
-  // Categorize into NEW (Pending/Confirmed/Preparing) vs HISTORY (Ready/Served)
+    // ENHANCED FIFO / LILO SORTING (Latest Bill Show at First by default)
+    filtered.sort((a, b) => {
+      const billA = Number(a.bill_no) || Number(a.branch_order_id) || Number(a.order_id) || 0;
+      const billB = Number(b.bill_no) || Number(b.branch_order_id) || Number(b.order_id) || 0;
+
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+
+      if (sortOrder === 'LATEST_FIRST') {
+        // LILO / Latest First: Highest Bill number & newest timestamp at the top!
+        if (billB !== billA) return billB - billA;
+        return timeB - timeA;
+      } else {
+        // FIFO / Oldest First: Oldest tickets at the top
+        if (billA !== billB) return billA - billB;
+        return timeA - timeB;
+      }
+    });
+
+    return filtered;
+  }, [orders, orderMode, searchTerm, sortOrder, timeScope]);
+
+  // Separate into New & In-Preparation vs Ready & Served
   const newOrdersList = useMemo(() => {
-    return filteredOrders.filter((o) => {
+    return processedOrders.filter((o) => {
       const s = (o.status || '').toUpperCase();
       return s === 'PENDING' || s === 'CONFIRMED' || s === 'PREPARING';
     });
-  }, [filteredOrders]);
+  }, [processedOrders]);
 
   const historyOrdersList = useMemo(() => {
-    return filteredOrders.filter((o) => {
+    return processedOrders.filter((o) => {
       const s = (o.status || '').toUpperCase();
       return s === 'READY' || s === 'SERVED';
     });
-  }, [filteredOrders]);
+  }, [processedOrders]);
 
-  // Report active count to parent header
+  // Report active count to parent
   useEffect(() => {
     if (onActiveCountChange) {
       onActiveCountChange(newOrdersList.length);
@@ -291,7 +468,7 @@ export default function KDSOrdersView({
 
   return (
     <div className="kds-view-container">
-      {/* Live Sync Status Bar */}
+      {/* Live Alert Bar */}
       {error && (
         <div className="kds-alert-bar">
           <AlertTriangle className="w-5 h-5 animate-pulse text-amber-300" />
@@ -302,144 +479,88 @@ export default function KDSOrdersView({
         </div>
       )}
 
-      {/* Main 2-Column Split View */}
+      {/* Control Bar: Sorting (LATEST vs FIFO) & Active Window */}
+      <div className="kds-flow-controls">
+        <div className="flow-controls-left">
+          <span className="flow-label">Ticket Ordering Flow:</span>
+          <button
+            onClick={handleToggleSort}
+            className={`flow-toggle-btn ${sortOrder === 'LATEST_FIRST' ? 'active-latest' : 'active-fifo'}`}
+            title="Switch between Latest Bill First and FIFO Oldest First"
+          >
+            <ArrowDownUp className="w-4 h-4 mr-1.5" />
+            <span>
+              {sortOrder === 'LATEST_FIRST'
+                ? '⚡ Latest Bill First (LILO Active)'
+                : '⏳ Oldest Order First (FIFO Active)'}
+            </span>
+          </button>
+        </div>
+
+        <div className="flow-controls-right">
+          <div className="scope-pills">
+            <button
+              onClick={() => setTimeScope('TODAY')}
+              className={`scope-pill ${timeScope === 'TODAY' ? 'active' : ''}`}
+            >
+              Active Today ({newOrdersList.length})
+            </button>
+            <button
+              onClick={() => setTimeScope('ALL')}
+              className={`scope-pill ${timeScope === 'ALL' ? 'active' : ''}`}
+            >
+              All Loaded ({orders.length})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main 2-Column Board */}
       <div className="kds-columns-grid">
         {/* COLUMN 1: NEW & IN-PREPARATION */}
         <section className="kds-column column-new">
           <div className="column-header new-orders-header">
             <div className="column-header-title">
-              <Clock className="w-6 h-6 text-amber-400" />
-              <h2>New & Preparing</h2>
+              <Flame className="w-6 h-6 text-amber-400 animate-pulse" />
+              <h2>New Orders & Kitchen Prep</h2>
             </div>
             <span className="column-count-badge count-new">
-              {newOrdersList.length}
+              {newOrdersList.length} Tickets
             </span>
           </div>
 
           <div className="column-orders-list">
             {loading && newOrdersList.length === 0 ? (
               <div className="kds-empty-state">
-                <RefreshCw className="w-8 h-8 text-neutral-500 animate-spin mb-2" />
+                <RefreshCw className="w-10 h-10 text-amber-400 animate-spin mb-3" />
                 <p>Loading live kitchen orders...</p>
               </div>
             ) : newOrdersList.length === 0 ? (
               <div className="kds-empty-state">
-                <ChefHat className="w-12 h-12 text-neutral-600 mb-2" />
+                <ChefHat className="w-14 h-14 text-neutral-600 mb-3" />
                 <p className="empty-title">All Caught Up!</p>
                 <p className="empty-sub">No pending kitchen orders right now.</p>
               </div>
             ) : (
-              newOrdersList.map((order) => {
-                const orderId = order.order_id || order.id;
-                const status = (order.status || '').toUpperCase();
-                const isNewlyArrived = newlyArrivedIds.has(orderId);
-                const mins = timeAgoMinutes(order.created_at);
-                const cust = getCustomerDetails(order);
-                const payBadge = getPaymentBadge(order);
-
-                // Delay indicator class
-                const delayClass = mins >= 20 ? 'delay-urgent' : mins >= 10 ? 'delay-warning' : 'delay-normal';
-
+              // Fast windowed rendering
+              newOrdersList.slice(0, 60).map((order) => {
+                const idStr = getNormalizedId(order);
                 return (
-                  <div
-                    key={orderId}
-                    className={`kds-card card-new ${isNewlyArrived ? 'card-newly-arrived' : ''} ${delayClass}`}
-                  >
-                    {/* Card Header */}
-                    <div className="card-top-bar">
-                      <div className="card-title-group">
-                        <span className="card-table-badge">
-                          {isDineIn(order) ? (
-                            `TABLE ${order.table_number || '?'}`
-                          ) : isTakeaway(order) ? (
-                            'TAKEAWAY'
-                          ) : (
-                            'DELIVERY'
-                          )}
-                        </span>
-                        {order.bill_no && (
-                          <span className="card-bill-badge">Bill #{order.bill_no}</span>
-                        )}
-                        <span className="card-id-text">#{order.branch_order_id || orderId}</span>
-                      </div>
-
-                      <div className="card-timer-badge">
-                        <Clock className="w-3.5 h-3.5 inline mr-1" />
-                        <span>{timeAgoDisplay(mins)}</span>
-                      </div>
-                    </div>
-
-                    {/* Customer & Placed By Row */}
-                    <div className="card-meta-row">
-                      <div className="card-customer-info">
-                        <User className="w-3.5 h-3.5 inline mr-1 text-neutral-400" />
-                        <span>{cust.name}</span>
-                        {cust.phone && <span className="text-neutral-400 ml-1">({cust.phone})</span>}
-                      </div>
-
-                      <span className={`payment-pill ${payBadge.className}`}>
-                        {payBadge.text}
-                      </span>
-                    </div>
-
-                    {/* Order Items Table */}
-                    <div className="card-items-box">
-                      {(order.items || []).map((item, idx) => (
-                        <div key={idx} className="card-item-row">
-                          <span className="item-qty-badge">{item.quantity}x</span>
-                          <span className="item-name">{item.name}</span>
-                          <span className="item-price">₹{(item.price * item.quantity).toFixed(0)}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Placed Info & Footer */}
-                    <div className="card-footer-info">
-                      <span className="placed-time">Placed: {formatOrderTime(order.created_at)}</span>
-                      {order.placed_by_name && (
-                        <span className="placed-by">By: {order.placed_by_name}</span>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="card-action-bar">
-                      <button
-                        onClick={() => setSelectedKOTOrder(order)}
-                        className="btn-card-secondary"
-                        title="View / Print KOT Ticket"
-                      >
-                        <Printer className="w-4 h-4 mr-1" /> KOT
-                      </button>
-
-                      {status !== 'PREPARING' ? (
-                        <button
-                          onClick={() => updateOrderStatus(orderId, 'PREPARING')}
-                          className="btn-card-prep"
-                        >
-                          <Utensils className="w-4 h-4 mr-1.5" /> Start Prep
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => updateOrderStatus(orderId, 'READY')}
-                          className="btn-card-ready"
-                        >
-                          <CheckCircle2 className="w-5 h-5 mr-1.5" /> Mark Ready
-                        </button>
-                      )}
-
-                      {status === 'PREPARING' && (
-                        <button
-                          onClick={() => updateOrderStatus(orderId, 'CONFIRMED')}
-                          className="btn-card-undo"
-                          title="Undo to Pending"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  <KDSTicketCard
+                    key={idStr}
+                    order={order}
+                    isNewlyArrived={newlyArrivedIds.has(idStr)}
+                    isHistory={false}
+                    onUpdateStatus={updateOrderStatus}
+                    onOpenKOT={setSelectedKOTOrder}
+                  />
                 );
               })
+            )}
+            {newOrdersList.length > 60 && (
+              <div className="text-center text-xs text-neutral-500 py-2">
+                Showing top 60 active tickets.
+              </div>
             )}
           </div>
         </section>
@@ -452,109 +573,42 @@ export default function KDSOrdersView({
               <h2>Ready & Served</h2>
             </div>
             <span className="column-count-badge count-history">
-              {historyOrdersList.length}
+              {historyOrdersList.length} Tickets
             </span>
           </div>
 
           <div className="column-orders-list">
             {historyOrdersList.length === 0 ? (
               <div className="kds-empty-state">
-                <CheckCircle2 className="w-12 h-12 text-neutral-600 mb-2" />
+                <CheckCircle2 className="w-14 h-14 text-neutral-600 mb-3" />
                 <p className="empty-title">No Ready Orders</p>
                 <p className="empty-sub">Completed orders will appear here.</p>
               </div>
             ) : (
-              historyOrdersList.map((order) => {
-                const orderId = order.order_id || order.id;
-                const status = (order.status || '').toUpperCase();
-                const mins = timeAgoMinutes(order.created_at);
-                const cust = getCustomerDetails(order);
-                const isReady = status === 'READY';
-
+              historyOrdersList.slice(0, 60).map((order) => {
+                const idStr = getNormalizedId(order);
                 return (
-                  <div
-                    key={orderId}
-                    className={`kds-card card-history ${isReady ? 'ready-pulse' : 'card-served'}`}
-                  >
-                    <div className="card-top-bar">
-                      <div className="card-title-group">
-                        <span className="card-table-badge history-table">
-                          {isDineIn(order) ? (
-                            `TABLE ${order.table_number || '?'}`
-                          ) : isTakeaway(order) ? (
-                            'TAKEAWAY'
-                          ) : (
-                            'DELIVERY'
-                          )}
-                        </span>
-                        {order.bill_no && (
-                          <span className="card-bill-badge">Bill #{order.bill_no}</span>
-                        )}
-                        <span className="card-id-text">#{order.branch_order_id || orderId}</span>
-                      </div>
-
-                      <span className={`status-pill ${isReady ? 'pill-ready' : 'pill-served'}`}>
-                        {isReady ? 'READY TO SERVE' : 'SERVED'}
-                      </span>
-                    </div>
-
-                    <div className="card-meta-row">
-                      <div className="card-customer-info">
-                        <User className="w-3.5 h-3.5 inline mr-1 text-neutral-400" />
-                        <span>{cust.name}</span>
-                      </div>
-                      <span className="ready-time">{formatOrderTime(order.created_at)}</span>
-                    </div>
-
-                    <div className="card-items-box history-items">
-                      {(order.items || []).map((item, idx) => (
-                        <div key={idx} className="card-item-row">
-                          <span className="item-qty-badge history-qty">{item.quantity}x</span>
-                          <span className="item-name">{item.name}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Action Bar */}
-                    <div className="card-action-bar">
-                      <button
-                        onClick={() => setSelectedKOTOrder(order)}
-                        className="btn-card-secondary"
-                        title="View / Print KOT Ticket"
-                      >
-                        <Printer className="w-4 h-4 mr-1" /> KOT
-                      </button>
-
-                      {isReady ? (
-                        <button
-                          onClick={() => updateOrderStatus(orderId, 'SERVED')}
-                          className="btn-card-serve"
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-1.5" /> Mark Served
-                        </button>
-                      ) : (
-                        <span className="served-complete-tag">
-                          ✓ Order Complete
-                        </span>
-                      )}
-
-                      <button
-                        onClick={() => updateOrderStatus(orderId, 'PREPARING')}
-                        className="btn-card-undo"
-                        title="Reopen back to Kitchen"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+                  <KDSTicketCard
+                    key={idStr}
+                    order={order}
+                    isNewlyArrived={false}
+                    isHistory={true}
+                    onUpdateStatus={updateOrderStatus}
+                    onOpenKOT={setSelectedKOTOrder}
+                  />
                 );
               })
+            )}
+            {historyOrdersList.length > 60 && (
+              <div className="text-center text-xs text-neutral-500 py-2">
+                Showing recent 60 completed tickets.
+              </div>
             )}
           </div>
         </section>
       </div>
 
-      {/* KOT Ticket Modal */}
+      {/* KOT Receipt Modal */}
       {selectedKOTOrder && (
         <div className="kot-modal-backdrop" onClick={() => setSelectedKOTOrder(null)}>
           <div className="kot-modal-sheet" onClick={(e) => e.stopPropagation()}>
@@ -567,22 +621,16 @@ export default function KDSOrdersView({
 
             <div className="kot-details-grid">
               <div>
-                <strong>Order #:</strong> #{selectedKOTOrder.branch_order_id || selectedKOTOrder.order_id}
+                <strong>BILL #:</strong> #{selectedKOTOrder.bill_no || selectedKOTOrder.order_id}
               </div>
               <div>
-                <strong>Bill #:</strong> {selectedKOTOrder.bill_no || 'N/A'}
+                <strong>Token:</strong> #{selectedKOTOrder.branch_order_id || selectedKOTOrder.order_id}
               </div>
               <div>
                 <strong>Type:</strong> {selectedKOTOrder.order_type || 'Dine-In'}
               </div>
               <div>
                 <strong>Table:</strong> {selectedKOTOrder.table_number || 'N/A'}
-              </div>
-              <div>
-                <strong>Time:</strong> {formatOrderTime(selectedKOTOrder.created_at)}
-              </div>
-              <div>
-                <strong>Staff:</strong> {selectedKOTOrder.placed_by_name || 'Counter'}
               </div>
             </div>
 
@@ -604,16 +652,10 @@ export default function KDSOrdersView({
             <div className="kot-divider-dashed" />
 
             <div className="kot-modal-actions">
-              <button
-                onClick={() => window.print()}
-                className="btn-kot-print"
-              >
+              <button onClick={() => window.print()} className="btn-kot-print">
                 <Printer className="w-4 h-4 mr-2" /> Print Ticket
               </button>
-              <button
-                onClick={() => setSelectedKOTOrder(null)}
-                className="btn-kot-close"
-              >
+              <button onClick={() => setSelectedKOTOrder(null)} className="btn-kot-close">
                 Close
               </button>
             </div>
