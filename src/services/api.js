@@ -1,8 +1,11 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 
 const getApiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+  let envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
   if (envUrl) {
+    if (envUrl.startsWith('https://dev-api.dataudipi.com')) {
+      envUrl = envUrl.replace('https://', 'http://');
+    }
     return envUrl;
   }
   if (typeof window !== 'undefined') {
@@ -52,8 +55,31 @@ api.interceptors.response.use(
 
 export const restaurantService = {
   getPublicRestaurants: async () => {
-    const response = await api.get('/api/v1/public/restaurants');
-    return response.data;
+    try {
+      const response = await api.get('/api/v1/public/restaurants');
+      return response.data;
+    } catch (err) {
+      // Smart automatic fallback between localhost and cloud dev-api
+      const currentBase = api.defaults.baseURL || '';
+      const fallbackBase = (currentBase.includes('localhost') || currentBase.includes('127.0.0.1'))
+        ? 'http://dev-api.dataudipi.com'
+        : 'http://localhost:8001';
+
+      console.warn(`Primary backend connection (${currentBase}) failed. Attempting fallback (${fallbackBase})...`);
+      try {
+        const fallbackRes = await axios.get(`${fallbackBase}/api/v1/public/restaurants`, {
+          timeout: 4000,
+          withCredentials: true,
+        });
+        if (fallbackRes.data && Array.isArray(fallbackRes.data)) {
+          api.defaults.baseURL = fallbackBase;
+          return fallbackRes.data;
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback backend also failed:', fallbackErr);
+      }
+      throw err;
+    }
   },
 
   connectTerminal: async (hotel) => {
@@ -168,5 +194,32 @@ export const orderService = {
       payment_status: paymentStatus,
     });
     return response.data;
+  },
+
+  markDeliveryDelivered: async (orderId) => {
+    const fallbacks = [
+      api.defaults.baseURL || 'http://dev-api.dataudipi.com',
+      'http://localhost:8001',
+      'http://127.0.0.1:8001'
+    ];
+    const token = localStorage.getItem('kds_access_token') || localStorage.getItem('access_token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    for (const base of fallbacks) {
+      try {
+        const res = await axios.post(
+          `${base}/api/v1/delivery/orders/${orderId}/status`,
+          { status: 'DELIVERED', notes: 'Delivered from KDS Dispatch' },
+          { headers, timeout: 5000 }
+        );
+        return res.data;
+      } catch (err) {
+        if (err?.response?.status !== 404) {
+          throw err;
+        }
+      }
+    }
+    // Fallback: update order status directly
+    return orderService.updateOrderStatus(orderId, 'COMPLETED');
   },
 };

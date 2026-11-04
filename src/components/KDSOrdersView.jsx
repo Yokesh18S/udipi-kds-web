@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Clock,
   CheckCircle2,
@@ -16,13 +16,46 @@ import {
   ArrowDownUp,
   SlidersHorizontal,
   Flame,
-  Check
+  Check,
+  Truck,
+  MapPin,
+  Copy,
+  CheckCheck
 } from 'lucide-react';
 import { orderService } from '../services/api';
 import { ringKOTOrders } from '../utils/kotAudio';
+import ThirdPartyAssignModal from './ThirdPartyAssignModal';
 
 // Helper to normalize order id to string
 const getNormalizedId = (order) => (order?.order_id ?? order?.id)?.toString();
+
+// Copy helper with feedback
+function CopyFieldButton({ text, label = 'Copy' }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    if (!text) return;
+    navigator.clipboard.writeText(text.toString()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  if (!text) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className={`btn-kot-copy ${copied ? 'copied' : ''}`}
+      title={`Copy ${label}`}
+    >
+      {copied ? <CheckCheck className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+      <span>{copied ? 'Copied' : label}</span>
+    </button>
+  );
+}
 
 // Memoized Individual Ticket Card for 0ms render latency
 const KDSTicketCard = React.memo(function KDSTicketCard({
@@ -30,11 +63,15 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
   isNewlyArrived,
   isHistory,
   onUpdateStatus,
-  onOpenKOT
+  onOpenKOT,
+  onAssignRider,
+  onMarkDelivered
 }) {
   const orderId = order.order_id || order.id;
   const status = (order.status || '').toUpperCase();
+  const deliveryStatus = (order.delivery_status || '').toUpperCase();
   const isReady = status === 'READY';
+  const isDelivered = deliveryStatus === 'DELIVERED' || status === 'COMPLETED';
 
   const isDelivery = order.order_type?.toLowerCase() === 'delivery';
   const isTakeaway = !isDelivery && (!order.table_number || order.table_number === 'N/A' || order.table_number.toString().toLowerCase() === 'takeaway');
@@ -82,11 +119,15 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
   // Customer resolution
   let custName = (order?.customer_name || '').trim();
   let custPhone = (order?.customer_phone || '').trim();
+  let custAddress = '';
+
   if (order?.delivery_address) {
     try {
       const addr = typeof order.delivery_address === 'string' ? JSON.parse(order.delivery_address) : order.delivery_address;
       if (addr?.contact_name || addr?.name) custName = addr.contact_name || addr.name;
       if (addr?.contact_phone || addr?.phone) custPhone = addr.contact_phone || addr.phone;
+      if (addr?.full_address) custAddress = addr.full_address;
+      else if (addr?.address) custAddress = addr.address;
     } catch (e) {}
   }
   if (!custName || custName === 'None') {
@@ -131,13 +172,26 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
 
       {/* 3. CUSTOMER DETAILS */}
       <div className="card-meta-row">
-        <div className="card-customer-info">
-          <User className="w-3.5 h-3.5 inline mr-1 text-neutral-400" />
-          <span className="font-semibold text-neutral-200">{custName}</span>
-          {custPhone && <span className="text-neutral-400 ml-1">({custPhone})</span>}
+        <div className="card-customer-row-compact">
+          <div className="card-customer-info">
+            <User className="w-3.5 h-3.5 inline mr-1 text-neutral-400" />
+            <span className="font-semibold text-neutral-200">{custName}</span>
+            {custPhone && <span className="text-neutral-400 ml-1">({custPhone})</span>}
+          </div>
+          <span className="placed-time">{formatOrderTime(order.created_at)}</span>
         </div>
-        <span className="placed-time">{formatOrderTime(order.created_at)}</span>
       </div>
+
+      {/* DELIVERY DETAILS BOX ON TICKET CARD */}
+      {isDelivery && (
+        <div className="card-delivery-address-box">
+          <MapPin className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <span className="card-delivery-address-text">
+            {custAddress || 'Delivery Address Not Specified'}
+          </span>
+          {custAddress && <CopyFieldButton text={custAddress} label="Copy Addr" />}
+        </div>
+      )}
 
       {/* Special notes if present */}
       {(order.special_instructions || order.notes) && (
@@ -182,43 +236,80 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
           <Printer className="w-4 h-4 mr-1" /> KOT
         </button>
 
-        {!isHistory ? (
-          status !== 'PREPARING' ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onUpdateStatus(orderId, 'PREPARING');
-              }}
-              className="btn-card-prep"
-            >
-              <Utensils className="w-4 h-4 mr-1.5" /> Start Prep
-            </button>
+        {/* DELIVERY ORDERS: Assign Rider button */}
+        {isDelivery && onAssignRider && !isDelivered && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAssignRider(order);
+            }}
+            className="btn-assign-rider"
+            title="Assign Third-Party Rider (Rapido / Dunzo)"
+          >
+            <Truck className="w-3.5 h-3.5" />
+            Assign Rider
+          </button>
+        )}
+
+        {/* DELIVERY ORDERS: Delivered button replaces Mark Served and stays visible */}
+        {isDelivery ? (
+          isDelivered ? (
+            <span className="badge-delivered-done">
+              <CheckCircle2 className="w-4 h-4 mr-1 text-emerald-400" />
+              Delivered
+            </span>
           ) : (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onUpdateStatus(orderId, 'READY');
+                if (onMarkDelivered) onMarkDelivered(orderId);
               }}
-              className="btn-card-ready"
+              className="btn-card-delivered"
+              title="Mark Delivered (Updates customer app in real-time)"
             >
-              <CheckCircle2 className="w-5 h-5 mr-1.5" /> Mark Ready
+              <Check className="w-4 h-4 mr-1.5" /> Mark Delivered
             </button>
           )
         ) : (
-          isReady ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onUpdateStatus(orderId, 'SERVED');
-              }}
-              className="btn-card-serve"
-            >
-              <Check className="w-4 h-4 mr-1.5" /> Mark Served
-            </button>
+          /* NON-DELIVERY (Dine-In / Takeaway): Standard Start Prep / Mark Ready / Mark Served */
+          !isHistory ? (
+            status !== 'PREPARING' ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdateStatus(orderId, 'PREPARING');
+                }}
+                className="btn-card-prep"
+              >
+                <Utensils className="w-4 h-4 mr-1.5" /> Start Prep
+              </button>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdateStatus(orderId, 'READY');
+                }}
+                className="btn-card-ready"
+              >
+                <CheckCircle2 className="w-5 h-5 mr-1.5" /> Mark Ready
+              </button>
+            )
           ) : (
-            <span className="served-complete-tag">
-              ✓ Order Complete
-            </span>
+            isReady ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdateStatus(orderId, 'SERVED');
+                }}
+                className="btn-card-serve"
+              >
+                <Check className="w-4 h-4 mr-1.5" /> Mark Served
+              </button>
+            ) : (
+              <span className="served-complete-tag">
+                ✓ Order Complete
+              </span>
+            )
           )
         )}
 
@@ -237,7 +328,7 @@ const KDSTicketCard = React.memo(function KDSTicketCard({
           </button>
         )}
 
-        {isHistory && (
+        {isHistory && !isDelivery && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -266,6 +357,7 @@ export default function KDSOrdersView({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [selectedKOTOrder, setSelectedKOTOrder] = useState(null);
+  const [assignRiderOrder, setAssignRiderOrder] = useState(null);
   const [newlyArrivedIds, setNewlyArrivedIds] = useState(new Set());
   
   // Mobile active tab: 'NEW' (default, 100% space for cooking) vs 'READY'
@@ -282,7 +374,6 @@ export default function KDSOrdersView({
   const knownOrderIdsRef = useRef(null);
   
   // ABSOLUTE USER AUTHORITY STATUS OVERRIDES
-  // Once the user clicks "Mark Ready" or "Start Prep", polling NEVER reverts the card!
   const userStatusOverridesRef = useRef(new Map());
 
   // Serialized polling state: strictly prevents overlapping background requests
@@ -312,6 +403,9 @@ export default function KDSOrdersView({
         const userOverride = userStatusOverridesRef.current.get(idStr);
 
         if (userOverride) {
+          if (typeof userOverride === 'object') {
+            return { ...o, ...userOverride };
+          }
           if (o.status?.toUpperCase() === userOverride.toUpperCase()) {
             return o;
           }
@@ -374,7 +468,6 @@ export default function KDSOrdersView({
       } finally {
         isPollingRef.current = false;
         if (isMounted) {
-          // Poll every 1 second for instant live reflection
           pollTimerRef.current = setTimeout(runPoll, 1000);
         }
       }
@@ -382,7 +475,6 @@ export default function KDSOrdersView({
 
     runPoll();
 
-    // 0-SECOND ZERO DELAY: Instant Cross-Window BroadcastChannel sync from Cashier/POS
     let channel = null;
     if (typeof BroadcastChannel !== 'undefined') {
       try {
@@ -395,7 +487,6 @@ export default function KDSOrdersView({
       } catch (e) {}
     }
 
-    // 0-SECOND ZERO DELAY: Instant Cross-Tab Storage Event sync from Cashier/POS
     const handleStorageSync = (e) => {
       if (e.key === 'kds_instant_sync_ping') {
         fetchOrders(false);
@@ -403,7 +494,6 @@ export default function KDSOrdersView({
     };
     window.addEventListener('storage', handleStorageSync);
 
-    // Trigger immediate fetch when app/tab regains focus
     const handleFocus = () => {
       if (!isPollingRef.current) {
         runPoll();
@@ -422,21 +512,17 @@ export default function KDSOrdersView({
     };
   }, [fetchOrders]);
 
-  // ZERO-LAG, ZERO BOUNCE-BACK STATUS UPDATER
+  // ZERO-LAG STATUS UPDATER
   const updateOrderStatus = useCallback((orderId, newStatus) => {
     if (!orderId) return;
-
     const idStr = orderId.toString();
 
-    // 1. Establish permanent user authority: polling will NEVER auto-revert this!
     userStatusOverridesRef.current.set(idStr, newStatus);
 
-    // 2. Instantaneous synchronous UI update (0ms latency, single movement)
     setOrders((current) =>
       current.map((o) => (getNormalizedId(o) === idStr ? { ...o, status: newStatus } : o))
     );
 
-    // 3. Background non-blocking network sync
     orderService
       .updateOrderStatus(orderId, newStatus)
       .catch((err) => {
@@ -447,24 +533,54 @@ export default function KDSOrdersView({
       });
   }, []);
 
+  // DELIVERED ACTION: reflects in customer app and stays visible without hiding
+  const handleMarkDelivered = useCallback(async (orderId) => {
+    if (!orderId) return;
+    const idStr = orderId.toString();
+
+    // Optimistically update local state: mark delivery_status as DELIVERED and status as COMPLETED
+    userStatusOverridesRef.current.set(idStr, {
+      delivery_status: 'DELIVERED',
+      status: 'COMPLETED'
+    });
+
+    setOrders((current) =>
+      current.map((o) =>
+        getNormalizedId(o) === idStr
+          ? { ...o, delivery_status: 'DELIVERED', status: 'COMPLETED' }
+          : o
+      )
+    );
+
+    try {
+      await orderService.markDeliveryDelivered(orderId);
+    } catch (err) {
+      console.error('Error marking delivered:', err);
+    }
+  }, []);
+
   // Filter and Sort Orders
   const processedOrders = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     const cutoff24h = Date.now() - 24 * 60 * 60 * 1000;
 
     const filtered = orders.filter((order) => {
+      const isDeliv = isDelivery(order);
       // Time scope filter (default TODAY focuses on active tickets)
+      // NOTE: Delivery tickets do NOT hide after delivered — they stay visible for today
       if (timeScope === 'TODAY') {
         const orderTime = new Date(order.created_at || 0).getTime();
-        if (orderTime < cutoff24h && (order.status === 'SERVED' || order.status === 'COMPLETED')) {
-          return false;
+        if (orderTime < cutoff24h) {
+          if (!isDeliv && (order.status === 'SERVED' || order.status === 'COMPLETED')) {
+            return false;
+          }
         }
       }
 
       // Order Mode filter (ALL includes everything: Dine-In, Takeaway, Delivery)
       if (orderMode === 'DINE_IN' && !isDineIn(order)) return false;
       if (orderMode === 'TAKEAWAY' && !isTakeaway(order)) return false;
-      if (orderMode === 'DELIVERY' && !isDelivery(order)) return false;
+      if (orderMode === 'DELIVERY' && !isDeliv) return false;
 
       // Search filter
       if (!term) return true;
@@ -506,6 +622,7 @@ export default function KDSOrdersView({
   }, [orders, orderMode, searchTerm, sortOrder, timeScope]);
 
   // Separate into New & In-Preparation vs Ready & Served
+  // Delivery orders stay in the board regardless of Delivered status
   const newOrdersList = useMemo(() => {
     return processedOrders.filter((o) => {
       const s = (o.status || '').toUpperCase();
@@ -516,7 +633,7 @@ export default function KDSOrdersView({
   const historyOrdersList = useMemo(() => {
     return processedOrders.filter((o) => {
       const s = (o.status || '').toUpperCase();
-      return s === 'READY' || s === 'SERVED';
+      return s === 'READY' || s === 'SERVED' || s === 'COMPLETED';
     });
   }, [processedOrders]);
 
@@ -527,9 +644,33 @@ export default function KDSOrdersView({
     }
   }, [newOrdersList.length, onActiveCountChange]);
 
+  // Customer resolution for selected KOT Order
+  const getSelectedKOTCustomer = useMemo(() => {
+    if (!selectedKOTOrder) return { name: '', phone: '', address: '' };
+    let name = (selectedKOTOrder.customer_name || '').trim();
+    let phone = (selectedKOTOrder.customer_phone || '').trim();
+    let address = '';
+
+    if (selectedKOTOrder.delivery_address) {
+      try {
+        const addr = typeof selectedKOTOrder.delivery_address === 'string'
+          ? JSON.parse(selectedKOTOrder.delivery_address)
+          : selectedKOTOrder.delivery_address;
+        if (addr?.contact_name || addr?.name) name = addr.contact_name || addr.name;
+        if (addr?.contact_phone || addr?.phone) phone = addr.contact_phone || addr.phone;
+        if (addr?.full_address) address = addr.full_address;
+        else if (addr?.address) address = addr.address;
+      } catch (e) {}
+    }
+    if (!name || name === 'None') {
+      name = phone ? 'Customer' : 'Guest';
+    }
+    return { name, phone, address };
+  }, [selectedKOTOrder]);
+
   return (
     <div className="kds-view-container">
-      {/* MOBILE INTEGRATED TOOLBAR (Single sleek row for phone screens) */}
+      {/* MOBILE INTEGRATED TOOLBAR */}
       <div className="mobile-view-toolbar mobile-only">
         <div className="mobile-column-tabs">
           <button
@@ -550,7 +691,6 @@ export default function KDSOrdersView({
         </div>
 
         <div className="mobile-sub-actions">
-          {/* Manual instant refresh button */}
           <button
             onClick={() => fetchOrders(true)}
             className={`mobile-sort-btn ${isRefreshing ? 'opacity-70' : ''}`}
@@ -623,7 +763,7 @@ export default function KDSOrdersView({
         </div>
       </div>
 
-      {/* Responsive Board: Single full-width column on mobile, 2-column on desktop/TV */}
+      {/* Responsive Board */}
       <div className="kds-columns-grid">
         {/* COLUMN 1: NEW & IN-PREPARATION */}
         <section className={`kds-column column-new ${mobileActiveTab === 'NEW' ? 'mobile-visible' : 'mobile-hidden'}`}>
@@ -654,7 +794,6 @@ export default function KDSOrdersView({
                 <p className="empty-sub">No pending orders right now.</p>
               </div>
             ) : (
-              // Sliced to top 40 tickets to prevent huge DOM tree freeze
               newOrdersList.slice(0, 40).map((order) => {
                 const idStr = getNormalizedId(order);
                 return (
@@ -665,6 +804,8 @@ export default function KDSOrdersView({
                     isHistory={false}
                     onUpdateStatus={updateOrderStatus}
                     onOpenKOT={setSelectedKOTOrder}
+                    onAssignRider={setAssignRiderOrder}
+                    onMarkDelivered={handleMarkDelivered}
                   />
                 );
               })
@@ -689,8 +830,7 @@ export default function KDSOrdersView({
                 <p className="empty-sub">Completed orders will appear here.</p>
               </div>
             ) : (
-              // Sliced to top 25 recent completed tickets
-              historyOrdersList.slice(0, 25).map((order) => {
+              historyOrdersList.slice(0, 40).map((order) => {
                 const idStr = getNormalizedId(order);
                 return (
                   <KDSTicketCard
@@ -700,6 +840,8 @@ export default function KDSOrdersView({
                     isHistory={true}
                     onUpdateStatus={updateOrderStatus}
                     onOpenKOT={setSelectedKOTOrder}
+                    onAssignRider={setAssignRiderOrder}
+                    onMarkDelivered={handleMarkDelivered}
                   />
                 );
               })
@@ -708,7 +850,7 @@ export default function KDSOrdersView({
         </section>
       </div>
 
-      {/* KOT Receipt Modal */}
+      {/* KOT Receipt Modal WITH NAME, PHONE, ADDRESS + COPY BUTTON FOR EACH */}
       {selectedKOTOrder && (
         <div className="kot-modal-backdrop" onClick={() => setSelectedKOTOrder(null)}>
           <div className="kot-modal-sheet" onClick={(e) => e.stopPropagation()}>
@@ -732,6 +874,33 @@ export default function KDSOrdersView({
               <div>
                 <strong>Table:</strong> {selectedKOTOrder.table_number || 'N/A'}
               </div>
+            </div>
+
+            {/* CUSTOMER DETAILS & COPY BUTTONS FOR NAME, PHONE, ADDRESS */}
+            <div className="kot-customer-card">
+              {getSelectedKOTCustomer.name && (
+                <div className="kot-customer-row">
+                  <span className="kot-info-label">Customer:</span>
+                  <span className="kot-info-val">{getSelectedKOTCustomer.name}</span>
+                  <CopyFieldButton text={getSelectedKOTCustomer.name} label="Copy Name" />
+                </div>
+              )}
+
+              {getSelectedKOTCustomer.phone && (
+                <div className="kot-customer-row">
+                  <span className="kot-info-label">Phone:</span>
+                  <span className="kot-info-val">{getSelectedKOTCustomer.phone}</span>
+                  <CopyFieldButton text={getSelectedKOTCustomer.phone} label="Copy Phone" />
+                </div>
+              )}
+
+              {getSelectedKOTCustomer.address && (
+                <div className="kot-customer-row address-row">
+                  <span className="kot-info-label">Address:</span>
+                  <span className="kot-info-val">{getSelectedKOTCustomer.address}</span>
+                  <CopyFieldButton text={getSelectedKOTCustomer.address} label="Copy Addr" />
+                </div>
+              )}
             </div>
 
             <div className="kot-divider-dashed" />
@@ -761,6 +930,18 @@ export default function KDSOrdersView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Third-Party Rider Assignment Modal */}
+      {assignRiderOrder && (
+        <ThirdPartyAssignModal
+          order={assignRiderOrder}
+          onClose={() => setAssignRiderOrder(null)}
+          onSuccess={() => {
+            setAssignRiderOrder(null);
+            fetchOrders(true);
+          }}
+        />
       )}
     </div>
   );
