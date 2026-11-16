@@ -487,20 +487,20 @@
   text-align: center;
 }
 
-/* ── 4. COMPACT BOTTOM PROMOTIONAL BANNER – DATA UDIPI APP ── */
+/* ── 4. PROMINENT BOTTOM PROMOTIONAL BANNER – DATA UDIPI APP ── */
 .tv-promo-banner {
-  height: 56px;
-  min-height: 56px;
-  max-height: 56px;
+  height: 82px;
+  min-height: 82px;
+  max-height: 82px;
   background: var(--du-bg-surface);
   border: 1.5px solid var(--du-border-subtle);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-  padding: 4px 28px;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  padding: 8px 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 28px;
   flex-shrink: 0;
   box-sizing: border-box;
   overflow: hidden;
@@ -514,16 +514,16 @@
 }
 
 .tv-promo-qr-frame {
-  width: 44px;
-  height: 44px;
-  border: 2px solid var(--du-brand-green);
-  border-radius: 6px;
-  padding: 2px;
+  width: 64px;
+  height: 64px;
+  border: 2.5px solid var(--du-brand-green);
+  border-radius: 10px;
+  padding: 3px;
   background: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 5px rgba(0, 160, 29, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 160, 29, 0.16);
   flex-shrink: 0;
 }
 
@@ -535,8 +535,8 @@
 }
 
 .tv-promo-vdivider {
-  width: 2px;
-  height: 34px;
+  width: 2.5px;
+  height: 52px;
   background-color: var(--du-brand-green);
   border-radius: 2px;
   margin: 0;
@@ -551,9 +551,9 @@
 }
 
 .tv-promo-heading {
-  font-size: 0.98rem;
+  font-size: 1.45rem;
   font-weight: 900;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: var(--du-brand-orange);
   margin: 0;
   line-height: 1.15;
@@ -561,10 +561,10 @@
 }
 
 .tv-promo-subheading {
-  font-size: 0.76rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--du-text-primary);
-  margin: 1px 0 0 0;
+  margin: 3px 0 0 0;
   line-height: 1.2;
 }
 
@@ -572,25 +572,25 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  margin-left: 6px;
+  margin-left: 12px;
 }
 
 .tv-promo-cta-bar {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   background: var(--du-brand-green);
   color: #FFFFFF;
-  padding: 5px 14px;
+  padding: 10px 24px;
   border-radius: 9999px;
   width: fit-content;
-  box-shadow: 0 2px 6px rgba(0, 160, 29, 0.25);
+  box-shadow: 0 3px 10px rgba(0, 160, 29, 0.3);
   box-sizing: border-box;
 }
 
 .tv-promo-cta-text {
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.95rem;
+  font-weight: 900;
   color: #FFFFFF;
   letter-spacing: 0.04em;
   text-transform: uppercase;

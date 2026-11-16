@@ -396,34 +396,14 @@ export default function CustomerDisplay({ hotelId: initialHotelId }) {
     return [...readyOrders, ...preparingOrders, ...billedOrders];
   }, [readyOrders, preparingOrders, billedOrders]);
 
-  // Always exactly 3 columns with up to 8 rows in each column (total 24 orders visible at once)
-  // If total active orders > 24, smoothly advance the batch every 10 seconds
-  const [pageOffset, setPageOffset] = useState(0);
-
-  useEffect(() => {
-    if (allSortedOrders.length <= 24) {
-      if (pageOffset !== 0) setPageOffset(0);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setPageOffset((prev) => {
-        const next = prev + 24;
-        return next >= allSortedOrders.length ? 0 : next;
-      });
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [allSortedOrders.length, pageOffset]);
-
+  // Exactly 3 columns with up to 8 rows in each column (single fixed page view, never auto-rotates or changes page)
   const { col1Orders, col2Orders, col3Orders } = useMemo(() => {
-    const currentBatch = allSortedOrders.slice(pageOffset, pageOffset + 24);
     return {
-      col1Orders: currentBatch.slice(0, 8),
-      col2Orders: currentBatch.slice(8, 16),
-      col3Orders: currentBatch.slice(16, 24),
+      col1Orders: allSortedOrders.slice(0, 8),
+      col2Orders: allSortedOrders.slice(8, 16),
+      col3Orders: allSortedOrders.slice(16, 24),
     };
-  }, [allSortedOrders, pageOffset]);
+  }, [allSortedOrders]);
 
   // Formatted date and time strings
   const timeFormatted = useMemo(() => {
@@ -687,7 +667,7 @@ export default function CustomerDisplay({ hotelId: initialHotelId }) {
         {/* Right: Green CTA Pill Button (Contained inside banner) */}
         <div className="tv-promo-cta-side">
           <div className="tv-promo-cta-bar">
-            <Download className="w-3.5 h-3.5 text-white flex-shrink-0" />
+            <Download className="w-5 h-5 text-white flex-shrink-0" />
             <span className="tv-promo-cta-text">
               SCAN THE QR CODE TO DOWNLOAD THE APP
             </span>
