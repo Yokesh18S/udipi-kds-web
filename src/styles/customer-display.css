@@ -1,0 +1,728 @@
+/* ==========================================================================
+   DATA UDIPI – CUSTOMER-FACING KITCHEN DISPLAY (TV DISPLAY)
+   AIRPORT DEPARTURE BOARD TABULAR LAYOUT
+   Optimized for 1920x1080 to show 30-40+ actual customer bills simultaneously
+   ========================================================================== */
+
+:root {
+  --du-brand-orange: #FF3400;
+  --du-brand-green: #00A01D;
+  --du-status-billed: #2563EB;
+  --du-text-primary: #0F172A;
+  --du-text-secondary: #475569;
+  --du-text-muted: #64748B;
+  --du-border-subtle: #E2E8F0;
+  --du-border-medium: #CBD5E1;
+  --du-bg-screen: #F8FAFC;
+  --du-bg-surface: #FFFFFF;
+  --du-bg-row-alt: #F8FAFC;
+}
+
+/* ── 0. GLOBAL RESET & FULLSCREEN CONTAINER ── */
+.customer-tv-screen {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 6px 12px;
+  background-color: var(--du-bg-screen);
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-body, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  color: var(--du-text-primary);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ── 1. COMPACT TOP TV HEADER NAVBAR ── */
+.customer-tv-header {
+  height: 46px;
+  min-height: 46px;
+  background: var(--du-bg-surface);
+  border: 1.5px solid var(--du-border-subtle);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  z-index: 40;
+}
+
+.tv-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tv-brand-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tv-brand-logo-img {
+  height: 28px;
+  width: auto;
+  max-width: 170px;
+  object-fit: contain;
+  display: block;
+}
+
+.tv-hotel-subtitle {
+  font-size: 0.90rem;
+  font-weight: 700;
+  color: var(--du-text-primary);
+  white-space: nowrap;
+}
+
+.tv-header-vdivider {
+  width: 1.5px;
+  height: 20px;
+  background-color: var(--du-border-medium);
+  flex-shrink: 0;
+}
+
+.tv-takeaway-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #FFF7ED;
+  color: var(--du-brand-orange);
+  border: 1px solid rgba(255, 52, 0, 0.3);
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.tv-takeaway-icon {
+  color: var(--du-brand-orange);
+}
+
+/* Center: Status Legend */
+.tv-header-center {
+  display: flex;
+  align-items: center;
+}
+
+.tv-legend-pill {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #F1F5F9;
+  border: 1px solid var(--du-border-subtle);
+  padding: 3px 14px;
+  border-radius: 9999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.tv-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tv-legend-count {
+  font-weight: 900;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.tv-legend-count.billed {
+  background: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.tv-legend-count.preparing {
+  background: #FFEDD5;
+  color: #C2410C;
+}
+
+.tv-legend-count.ready {
+  background: #DCFCE7;
+  color: #15803D;
+}
+
+.tv-legend-divider {
+  width: 1px;
+  height: 16px;
+  background-color: var(--du-border-medium);
+}
+
+.tv-legend-item.total {
+  color: var(--du-text-secondary);
+}
+
+.tv-legend-count.total {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+.tv-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.tv-legend-dot.billed {
+  background-color: var(--du-status-billed);
+}
+
+.tv-legend-dot.preparing {
+  background-color: var(--du-brand-orange);
+}
+
+.tv-legend-dot.ready {
+  background-color: var(--du-brand-green);
+}
+
+/* Right: Clock & Controls */
+.tv-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tv-connection-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.tv-connection-badge.live {
+  background: #DCFCE7;
+  color: #166534;
+  border: 1px solid rgba(0, 160, 29, 0.3);
+}
+
+.tv-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--du-brand-green);
+  animation: pulse-live 1.8s infinite;
+}
+
+@keyframes pulse-live {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px rgba(0, 160, 29, 0.6); }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.tv-clock-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+}
+
+.tv-live-time {
+  font-family: var(--font-display, inherit);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--du-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.tv-live-date {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--du-text-muted);
+}
+
+.tv-fullscreen-btn {
+  background: #F1F5F9;
+  border: 1px solid var(--du-border-subtle);
+  color: var(--du-text-secondary);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tv-fullscreen-btn:hover {
+  background: #E2E8F0;
+  color: var(--du-text-primary);
+}
+
+/* ── 2. MAIN UNIFIED AIRPORT-STYLE INFORMATION BOARD (8 ROWS x 3 COLUMNS) ── */
+.customer-tv-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 5px 0;
+  overflow: hidden;
+}
+
+.tv-unified-panels-grid {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Unified Table Panel Container */
+.tv-unified-panel {
+  flex: 1;
+  min-width: 0;
+  background: var(--du-bg-surface);
+  border: 1.5px solid var(--du-border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+/* Panel Table Column Header (BILL NO. and STATUS) */
+.tv-table-col-header {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 24px;
+  background: #F1F5F9;
+  border-bottom: 2px solid var(--du-border-medium);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.tv-col-label-bill {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--du-text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.tv-col-label-status {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--du-text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+/* Panel Rows Container: 8 equal rows filling the height */
+.tv-table-rows {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+/* ── 3. INDIVIDUAL TABULAR ROW (8 EQUAL ROWS, LARGE FONTS) ── */
+.tv-board-row {
+  height: 12.5%; /* Exactly 1/8th of container */
+  min-height: 98px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1.5px solid var(--du-border-subtle);
+  background: #FFFFFF;
+  box-sizing: border-box;
+  transition: background-color 0.12s ease;
+}
+
+.tv-board-row.row-even {
+  background: #F8FAFC;
+}
+
+/* Status-specific left accent bar */
+.tv-board-row.row-billed {
+  border-left: 7px solid #2563EB;
+}
+.tv-board-row.row-billed:hover {
+  background: #EFF6FF;
+}
+
+.tv-board-row.row-preparing {
+  border-left: 7px solid #FF3400;
+}
+.tv-board-row.row-preparing:hover {
+  background: #FFF7ED;
+}
+
+.tv-board-row.row-ready {
+  border-left: 7px solid #00A01D;
+  background: #F0FDF4;
+}
+.tv-board-row.row-ready.row-even {
+  background: #F7FEF9;
+}
+.tv-board-row.row-ready:hover {
+  background: #DCFCE7;
+}
+
+/* Left: Large Bill Number */
+.tv-row-bill {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.tv-row-bill-main {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.tv-row-hash {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #94A3B8;
+}
+
+.tv-row-number {
+  font-family: var(--font-display, inherit);
+  font-size: 2.85rem; /* ~46px bold */
+  font-weight: 900;
+  color: var(--du-text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* Phone order ETA tag (Only displayed when ordered through phone) */
+.tv-phone-order-eta {
+  display: inline-flex;
+  align-items: center;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.80rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  margin-top: 3px;
+  width: fit-content;
+}
+
+/* Right: Prominent Status Badge */
+.tv-row-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.tv-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 20px;
+  border-radius: 9999px;
+  font-size: 1.12rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.badge-status-billed {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1.5px solid rgba(37, 99, 235, 0.35);
+}
+
+.badge-status-preparing {
+  background: #FFF7ED;
+  color: #C2410C;
+  border: 1.5px solid rgba(255, 52, 0, 0.35);
+}
+
+.badge-status-ready {
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1.5px solid rgba(0, 160, 29, 0.4);
+}
+
+/* Subtle glow pulse on newly arrived orders */
+.tv-row-new {
+  animation: row-highlight 1.5s ease-out 3;
+}
+
+@keyframes row-highlight {
+  0% { background-color: #FEF08A; }
+  100% { background-color: transparent; }
+}
+
+/* Empty Section State */
+.tv-section-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+  color: var(--du-text-muted);
+  font-size: 0.90rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ── 4. COMPACT BOTTOM PROMOTIONAL BANNER – DATA UDIPI APP ── */
+.tv-promo-banner {
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  background: var(--du-bg-surface);
+  border: 1.5px solid var(--du-border-subtle);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  padding: 4px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  z-index: 40;
+}
+
+.tv-promo-qr-side {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tv-promo-qr-frame {
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--du-brand-green);
+  border-radius: 6px;
+  padding: 2px;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 5px rgba(0, 160, 29, 0.12);
+  flex-shrink: 0;
+}
+
+.tv-promo-qr-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.tv-promo-vdivider {
+  width: 2px;
+  height: 34px;
+  background-color: var(--du-brand-green);
+  border-radius: 2px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.tv-promo-text-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tv-promo-heading {
+  font-size: 0.98rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  color: var(--du-brand-orange);
+  margin: 0;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.tv-promo-subheading {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--du-text-primary);
+  margin: 1px 0 0 0;
+  line-height: 1.2;
+}
+
+.tv-promo-cta-side {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.tv-promo-cta-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--du-brand-green);
+  color: #FFFFFF;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  width: fit-content;
+  box-shadow: 0 2px 6px rgba(0, 160, 29, 0.25);
+  box-sizing: border-box;
+}
+
+.tv-promo-cta-text {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── 5. BRANCH PICKER & INITIAL LOADING FALLBACKS ── */
+.tv-branch-picker-screen,
+.tv-loading-screen {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--du-bg-screen);
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.tv-branch-picker-shell {
+  max-width: 800px;
+  width: 100%;
+  background: #FFFFFF;
+  border: 1px solid var(--du-border-subtle);
+  border-radius: 16px;
+  padding: 36px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tv-picker-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.tv-picker-logo-img {
+  height: 48px;
+  margin-bottom: 12px;
+}
+
+.tv-picker-title {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--du-text-primary);
+  margin: 0 0 6px 0;
+}
+
+.tv-picker-subtitle {
+  font-size: 0.95rem;
+  color: var(--du-text-muted);
+  margin: 0;
+}
+
+.tv-branch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.tv-branch-card {
+  border: 1px solid var(--du-border-subtle);
+  border-radius: 12px;
+  padding: 18px;
+  cursor: pointer;
+  background: #FFFFFF;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tv-branch-card:hover {
+  border-color: var(--du-brand-orange);
+  box-shadow: 0 6px 18px rgba(255, 52, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.tv-branch-card-name {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--du-text-primary);
+  margin: 0;
+}
+
+.tv-branch-card-address {
+  font-size: 0.82rem;
+  color: var(--du-text-muted);
+  margin: 0;
+}
+
+.tv-branch-card-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--du-brand-orange);
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-top: auto;
+}
+
+.tv-loading-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid var(--du-border-subtle);
+  border-top-color: var(--du-brand-orange);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.tv-loading-text {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--du-text-secondary);
+  margin-top: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── 6. RESPONSIVE MEDIA QUERIES (MOBILE / TABLET) ── */
+@media (max-width: 1024px) {
+  .tv-sections-row {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .customer-tv-screen {
+    overflow-y: auto;
+    height: auto;
+    min-height: 100vh;
+  }
+}

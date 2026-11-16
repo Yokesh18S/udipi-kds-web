@@ -9,9 +9,9 @@
   --border-subtle: rgba(255, 255, 255, 0.07);
   --border-highlight: rgba(255, 255, 255, 0.15);
   
-  --color-amber: #f59e0b;
+  --color-amber: #ed5b0c;
   --color-emerald: #10b981;
-  --color-sky: #0284c7;
+  --color-sky: #0284c7; 
   --color-rose: #f43f5e;
   
   --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -1472,6 +1472,7 @@ body {
   border-top: 1px solid var(--border-subtle);
   padding-top: 16px;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .station-ready-badge {
@@ -1481,26 +1482,73 @@ body {
   font-size: 0.8rem;
   font-weight: 600;
   color: #34d399;
+  white-space: nowrap;
+}
+
+.hotel-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.hotel-display-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(0, 160, 29, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(0, 160, 29, 0.4);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-family: var(--font-display, inherit);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.hotel-display-btn:hover {
+  background: rgba(0, 160, 29, 0.25);
+  border-color: #00A01D;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 160, 29, 0.3);
+}
+
+.hotel-display-btn:active {
+  transform: scale(0.97);
 }
 
 .hotel-launch-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: #111722;
   border: none;
   padding: 10px 18px;
   border-radius: 10px;
-  font-family: var(--font-display);
+  font-family: var(--font-display, inherit);
   font-weight: 800;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
-  transition: transform 0.15s;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.hotel-launch-btn:hover {
+  background: linear-gradient(135deg, #fbbf24 0%, #b45309 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45);
 }
 
 .hotel-launch-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
 }
 
 .selector-loading-state,

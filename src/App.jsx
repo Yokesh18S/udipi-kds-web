@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { authService } from './services/api';
 import { kotAudio, stopKOTRinging, unlockKOTAudio } from './utils/kotAudio';
 import { useWakeLock } from './hooks/useWakeLock';
@@ -7,8 +7,9 @@ import KDSHeader from './components/KDSHeader';
 import KDSOrdersView from './components/KDSOrdersView';
 import HotelSelector from './components/HotelSelector';
 import KioskBanner from './components/KioskBanner';
+import CustomerDisplay from './components/CustomerDisplay';
 
-export default function App() {
+function StaffKDSApp() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [activeCount, setActiveCount] = useState(0);
@@ -175,4 +176,17 @@ export default function App() {
       </main>
     </div>
   );
+}
+
+export default function App() {
+  // Check if current tab is running as the Customer-Facing Kitchen TV Display
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const isCustomerDisplay = urlParams?.get('display') === 'customer' || urlParams?.get('view') === 'customer-display';
+  const customerHotelId = urlParams?.get('hotel') || urlParams?.get('restaurant_id');
+
+  if (isCustomerDisplay) {
+    return <CustomerDisplay hotelId={customerHotelId} />;
+  }
+
+  return <StaffKDSApp />;
 }

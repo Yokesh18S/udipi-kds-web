@@ -1,6 +1,7 @@
-﻿import React, { useState, useEffect } from 'react';
-import { ChefHat, Building2, MapPin, Phone, ArrowRight, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChefHat, Building2, MapPin, Phone, ArrowRight, RefreshCw, AlertCircle, Sparkles, Tv } from 'lucide-react';
 import { restaurantService } from '../services/api';
+import '../styles/customer-display.css';
 
 export default function HotelSelector({ onSelectHotel }) {
   const [hotels, setHotels] = useState([]);
@@ -39,6 +40,12 @@ export default function HotelSelector({ onSelectHotel }) {
       setError(`Failed to connect to ${hotel.name}. Please try again.`);
       setConnectingId(null);
     }
+  };
+
+  const handleOpenCustomerDisplay = (e, hotel) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}${window.location.pathname}?display=customer&hotel=${hotel.id}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const filteredHotels = hotels.filter((h) => {
@@ -149,22 +156,39 @@ export default function HotelSelector({ onSelectHotel }) {
                       <span>Kitchen Station Active</span>
                     </div>
 
-                    <button
-                      disabled={isConnecting}
-                      className="hotel-launch-btn"
-                    >
-                      {isConnecting ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin mr-1.5" />
-                          <span>Connecting...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Open KDS</span>
-                          <ArrowRight className="w-4 h-4 ml-1.5" />
-                        </>
-                      )}
-                    </button>
+                    <div className="hotel-card-actions">
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenCustomerDisplay(e, hotel)}
+                        className="hotel-display-btn"
+                        title={`Open Customer-Facing TV Display for ${hotel.name} in a new tab`}
+                      >
+                        <Tv className="w-4 h-4 mr-1.5" />
+                        <span>Customer Display</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isConnecting}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isConnecting) handleConnect(hotel);
+                        }}
+                        className="hotel-launch-btn"
+                      >
+                        {isConnecting ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin mr-1.5" />
+                            <span>Connecting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Open KDS</span>
+                            <ArrowRight className="w-4 h-4 ml-1.5" />
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
